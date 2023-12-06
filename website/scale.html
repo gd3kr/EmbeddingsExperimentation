@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interactive Line Drawing Tool with Card Pick-Up Animation</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/@popperjs/core@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  body {
+    font-family: 'Inter', sans-serif;
+  }
+  .draggable {
+    touch-action: none;
+    transition: transform 0.2s ease-in-out, box-shadow 0.3s ease-in-out;
+    cursor: pointer;
+  }
+  .line {
+    height: 2px;
+    position: absolute;
+    transform-origin: 0 0;
+    z-index: 0;
+  }
+  .node {
+    z-index: 1;
+    background-size: cover;
+    background-position: center;
+  }
+  .distance-label {
+    position: absolute;
+    color: #1F2937;
+    font-size: 0.875rem;
+    font-weight: 500;
+    user-select: none;
+    pointer-events: none;
+    z-index: 10;
+    background-color: white;
+    padding: 2px 4px;
+    border-radius: 4px;
+  }
+  .floating-menu {
+    position: fixed;
+    bottom: 16px;
+    left: 16px;
+    background-color: white;
+    border: 1px solid #e5e7eb;
+    padding: 8px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+  }
+  .tool-button {
+    background-color: #f3f4f6;
+    color: #1f2937;
+    padding: 4px 8px;
+    margin-right: 4px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .tool-button.active {
+    background-color: #3b82f6;
+    color: white;
+  }
+</style>
+</head>
+<body class="bg-gray-50">
+
+<div id="canvas" class="w-full h-screen bg-white relative overflow-hidden">
+  <!-- Canvas will be populated with nodes, lines, and distance labels here -->
+</div>
+
+<button id="resetButton" class="absolute top-4 right-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+  Reset
+</button>
+
+<div class="floating-menu">
+  <button class="tool-button active" data-color="#4B5563">Default</button>
+  <button class="tool-button" data-color="#EF4444">Red</button>
+  <button class="tool-button" data-color="#10B981">Green</button>
+  <button class="tool-button" data-color="#3B82F6">Blue</button>
+</div>
+
+<script>
+  let canvas = document.getElementById('canvas');
+  let resetButton = document.getElementById('resetButton');
+  let toolButtons = document.querySelectorAll('.tool-button');
+  let currentLineColor = '#4B5563'; // Default line color
+  let nextLineColor = currentLineColor; // Color for the next line to be drawn
+
+  toolButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      toolButtons.forEach(btn => btn.classList.remove('active'));
+      button.classList.add('active');
+      nextLineColor = button.getAttribute('data-color');
+    });
+  });
+
+  let isDragging = false;
+  let dragOffset = { x: 0, y: 0 };
+  let nodes = [];
+  let lines = [];
+
+  canvas.addEventListener('mousedown', function(e) {
+    if (e.target === canvas) {
+      createNode(e.clientX, e.clientY);
+    } else if (e.target.classList.contains('draggable')) {
+      isDragging = true;
+      dragOffset.x = e.clientX - e.target.getBoundingClientRect().left;
+      dragOffset.y = e.clientY - e.target.getBoundingClientRect().top;
+      e.target.classList.add('z-10');
+      e.target.style.transform = 'scale(1.1)';
+      e.target.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08)';
+    }
+  });
+
+  canvas.addEventListener('mousemove', function(e) {
+    if (isDragging) {
+      const draggable = document.querySelector('.draggable.z-10');
+      draggable.style.left = `${e.clientX - dragOffset.x}px`;
+      draggable.style.top = `${e.clientY - dragOffset.y}px`;
+      updateLines(draggable);
+    }
+  });
+
+  canvas.addEventListener('mouseup', function(e) {
+    if (isDragging) {
+      const draggable = document.querySelector('.draggable.z-10');
+      draggable.classList.remove('z-10');
+      draggable.style.transform = 'scale(1)';
+      draggable.style.boxShadow = 'none';
+      isDragging = false;
+    }
+  });
+
+  resetButton.addEventListener('click', function() {
+    while (canvas.firstChild) {
+      canvas.removeChild(canvas.firstChild);
+    }
+    nodes = [];
+    lines = [];
+  });
+
+  function createNode(x, y) {
+    let node = document.createElement('div');
+    node.className = 'draggable node w-24 h-24 border border-gray-300 absolute cursor-move';
+    node.style.left = `${x - 48}px`;
+    node.style.top = `${y - 48}px`;
+    node.style.backgroundImage = `url('https://source.unsplash.com/random/96x96?sig=${Math.random()}')`;
+    canvas.appendChild(node);
+    nodes.push(node);
+    if (nodes.length > 1) {
+      createLine(nodes[nodes.length - 2], node);
+    }
+  }
+
+  function createLine(startNode, endNode) {
+    let line = document.createElement('div');
+    line.className = 'line';
+    line.style.backgroundColor = nextLineColor; // Use the selected color for the next line
+    canvas.insertBefore(line, canvas.firstChild);
+    lines.push({ line, startNode, endNode, label: null });
+    updateLinePosition(line, startNode, endNode);
+    currentLineColor = nextLineColor; // Set the current line color to the selected color
+  }
+
+  function updateLines(movedNode) {
+    lines.forEach(({ line, startNode, endNode, label }) => {
+      if (startNode === movedNode || endNode === movedNode) {
+        updateLinePosition(line, startNode, endNode, label);
+      }
+    });
+  }
+
+  function updateLinePosition(line, startNode, endNode, label) {
+    const startRect = startNode.getBoundingClientRect();
+    const endRect = endNode.getBoundingClientRect();
+    const startX = startRect.left + startRect.width / 2;
+    const startY = startRect.top + startRect.height / 2;
+    const endX = endRect.left + endRect.width / 2;
+    const endY = endRect.top + endRect.height / 2;
+    const length = Math.sqrt((endX - startX) ** 2 + (endY - startY) ** 2);
+    const angle = Math.atan2(endY - startY, endX - startX) * 180 / Math.PI;
+    line.style.width = `${length}px`;
+    line.style.left = `${startX}px`;
+    line.style.top = `${startY - 1}px`;
+    line.style.transform = `rotate(${angle}deg)`;
+
+    if (!label) {
+      label = document.createElement('div');
+      label.className = 'distance-label';
+      canvas.appendChild(label);
+      lines.find(l => l.line === line).label = label;
+    }
+    label.textContent = (length / 100).toFixed(1) + 'x';
+    const labelX = (startX + endX) / 2;
+    const labelY = (startY + endY) / 2;
+    label.style.left = `${labelX - label.offsetWidth / 2}px`;
+    label.style.top = `${labelY - label.offsetHeight - 10}px`;
+  }
+</script>
+
+</body>
+</html>

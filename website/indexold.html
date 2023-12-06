@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interactive Bezier Line Chart with Draggable Nodes</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/@popperjs/core@2"></script>
+<style>
+  .draggable {
+    touch-action: none;
+  }
+  .node {
+    z-index: 1; /* Ensure nodes are above the lines */
+    background-size: cover;
+    background-position: center;
+  }
+  .distance-label {
+    position: absolute;
+    color: #1F2937; /* Gray-800 for better visibility */
+    font-size: 0.875rem; /* Tailwind text-sm */
+    font-weight: 500; /* Tailwind font-medium */
+    user-select: none;
+    pointer-events: none;
+    z-index: 10; /* Ensure label is above the lines */
+    background-color: white; /* White background for the label */
+    padding: 2px 4px; /* Padding around the label */
+    border-radius: 4px; /* Slightly rounded corners for the label */
+  }
+  .bezier-line {
+    fill: none;
+    stroke: #4B5563; /* Gray-600 for better visibility */
+    stroke-width: 2;
+  }
+</style>
+</head>
+<body class="bg-gray-50"> <!-- Light theme background -->
+
+<div id="canvas" class="w-full h-screen bg-white relative overflow-hidden">
+  <!-- Canvas will be populated with nodes, lines, and distance labels here -->
+  <svg id="svgCanvas" class="w-full h-full absolute top-0 left-0 pointer-events-none"></svg>
+</div>
+
+<script>
+  let canvas = document.getElementById('canvas');
+  let svgCanvas = document.getElementById('svgCanvas');
+  let isDragging = false;
+  let dragOffset = { x: 0, y: 0 };
+  let nodes = [];
+  let lines = [];
+
+  canvas.addEventListener('mousedown', function(e) {
+    if (e.target === canvas) {
+      createNode(e.clientX, e.clientY);
+    } else if (e.target.classList.contains('draggable')) {
+      isDragging = true;
+      dragOffset.x = e.clientX - e.target.getBoundingClientRect().left;
+      dragOffset.y = e.clientY - e.target.getBoundingClientRect().top;
+      e.target.classList.add('z-10');
+    }
+  });
+
+  canvas.addEventListener('mousemove', function(e) {
+    if (isDragging) {
+      const draggable = document.querySelector('.draggable.z-10');
+      draggable.style.left = `${e.clientX - dragOffset.x}px`;
+      draggable.style.top = `${e.clientY - dragOffset.y}px`;
+      updateLines(draggable);
+    }
+  });
+
+
+  canvas.addEventListener('mouseup', function(e) {
+    if (isDragging) {
+      const draggable = document.querySelector('.draggable.z-10');
+      draggable.classList.remove('z-10');
+      isDragging = false;
+    }
+  });
+
+  function createNode(x, y) {
+    let node = document.createElement('div');
+    node.className = 'draggable node w-24 h-24 border border-gray-300 absolute cursor-move'; // Light theme colors
+    node.style.left = `${x - 48}px`;
+    node.style.top = `${y - 48}px`;
+    node.style.backgroundImage = `url('https://source.unsplash.com/random/96x96?sig=${Math.random()}')`;
+    canvas.appendChild(node);
+    nodes.push(node);
+    if (nodes.length > 1) {
+      createBezierLine(nodes[nodes.length - 2], node);
+    }
+  }
+
+  function createBezierLine(startNode, endNode) {
+    let path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('class', 'bezier-line');
+    svgCanvas.appendChild(path);
+    lines.push({ path, startNode, endNode, label: null });
+    updateBezierLine(path, startNode, endNode);
+  }
+
+  function updateLines(movedNode) {
+    lines.forEach(({ path, startNode, endNode, label }) => {
+      if (startNode === movedNode || endNode === movedNode) {
+        updateBezierLine(path, startNode, endNode, label);
+      }
+    });
+  }
+
+  function updateBezierLine(path, startNode, endNode, label) {
+    const startRect = startNode.getBoundingClientRect();
+    const endRect = endNode.getBoundingClientRect();
+    const startX = startRect.left + startRect.width / 2;
+    const startY = startRect.top + startRect.height / 2;
+    const endX = endRect.left + endRect.width / 2;
+    const endY = endRect.top + endRect.height / 2;
+    const controlX1 = (startX + endX) / 2;
+    const controlY1 = startY;
+    const controlX2 = (startX + endX) / 2;
+    const controlY2 = endY;
+    const d = `M${startX},${startY} C${controlX1},${controlY1} ${controlX2},${controlY2} ${endX},${endY}`;
+    path.setAttribute('d', d);
+
+    // Update or create the distance label
+    if (!label) {
+      label = document.createElement('div');
+      label.className = 'distance-label';
+      canvas.appendChild(label);
+      lines.find(l => l.path === path).label = label;
+    }
+    // const length = Math.max(Math.sqrt((endX - startX) ** 2 + (endY - startY) ** 2), 50); round to nearest 10
+    const length = Math.round(Math.max(Math.sqrt((endX - startX) ** 2 + (endY - startY) ** 2), 50) / 10) * 10;
+    label.textContent = Math.round(length);
+    const labelX = (startX + endX) / 2;
+    const labelY = (startY + endY) / 2 - 10; // Position above the line
+    label.style.left = `${labelX - label.offsetWidth / 2}px`;
+    label.style.top = `${labelY - label.offsetHeight}px`;
+  }
+</script>
+
+</body>
+</html>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interactive Image Change on Drag</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/@popperjs/core@2"></script>
+<style>
+  .draggable {
+    touch-action: none;
+  }
+  .node {
+    z-index: 1;
+    background-size: cover;
+    background-position: center;
+  }
+  .bezier-line {
+    fill: none;
+    stroke: #4B5563;
+    stroke-width: 2;
+  }
+</style>
+</head>
+<body class="bg-gray-50">
+
+<div id="canvas" class="w-full h-screen bg-white relative overflow-hidden">
+  <svg id="svgCanvas" class="w-full h-full absolute top-0 left-0 pointer-events-none"></svg>
+</div>

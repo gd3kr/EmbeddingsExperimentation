@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interactive Image and Line Drawing Tool</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  body {
+    font-family: 'Inter', sans-serif;
+  }
+  .draggable {
+    touch-action: none;
+    transition: transform 0.2s ease-in-out, box-shadow 0.3s ease-in-out;
+    cursor: pointer;
+  }
+  .line {
+    height: 2px;
+    position: absolute;
+    transform-origin: 0 0;
+    z-index: 0;
+    background-color: #4B5563; /* Default line color */
+  }
+  .node {
+    z-index: 1;
+    background-size: cover;
+    background-position: center;
+    transition: filter 0.3s ease;
+  }
+  .node.loading {
+    filter: blur(5px);
+  }
+  .line-button {
+    position: absolute;
+    background-color: black;
+    color: white;
+    border: none;
+    padding: 4px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    user-select: none;
+    z-index: 10;
+  }
+</style>
+</head>
+<body class="bg-gray-50">
+
+<div id="canvas" class="w-full h-screen bg-white relative overflow-hidden">
+  <!-- Canvas will be populated with nodes, lines, and buttons here -->
+</div>
+
+<button id="resetButton" class="absolute top-4 right-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+  Reset
+</button>
+
+<script>
+  let canvas = document.getElementById('canvas');
+  let resetButton = document.getElementById('resetButton');
+  let isDragging = false;
+  let dragOffset = { x: 0, y: 0 };
+  let nodes = [];
+  let lines = [];
+
+  canvas.addEventListener('mousedown', function(e) {
+    if (e.target === canvas) {
+      createNode(e.clientX, e.clientY);
+    } else if (e.target.classList.contains('draggable')) {
+      isDragging = true;
+      dragOffset.x = e.clientX - e.target.getBoundingClientRect().left;
+      dragOffset.y = e.clientY - e.target.getBoundingClientRect().top;
+      e.target.classList.add('z-10');
+      e.target.style.transform = 'scale(1.1)';
+      e.target.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08)';
+    }
+  });
+
+  canvas.addEventListener('mousemove', function(e) {
+    if (isDragging) {
+      const draggable = document.querySelector('.draggable.z-10');
+      draggable.style.left = `${e.clientX - dragOffset.x}px`;
+      draggable.style.top = `${e.clientY - dragOffset.y}px`;
+      updateLines(draggable);
+    }
+  });
+
+  canvas.addEventListener('mouseup', function(e) {
+    if (isDragging) {
+      const draggable = document.querySelector('.draggable.z-10');
+      draggable.classList.remove('z-10');
+      draggable.style.transform = 'scale(1)';
+      draggable.style.boxShadow = 'none';
+      isDragging = false;
+    }
+  });
+
+  resetButton.addEventListener('click', function() {
+    while (canvas.firstChild) {
+      canvas.removeChild(canvas.firstChild);
+    }
+    nodes = [];
+    lines = [];
+  });
+
+  function createNode(x, y) {
+    let node = document.createElement('div');
+    node.className = 'draggable node w-24 h-24 border border-gray-300 absolute cursor-move loading';
+    node.style.left = `${x - 48}px`;
+    node.style.top = `${y - 48}px`;
+    let img = new Image();
+    img.src = `https://source.unsplash.com/random/96x96?sig=${Math.random()}`;
+    img.onload = () => {
+      node.classList.remove('loading');
+      node.style.backgroundImage = `url('${img.src}')`;
+    };
+    canvas.appendChild(node);
+    nodes.push(node);
+    if (nodes.length > 1) {
+      createLine(nodes[nodes.length - 2], node);
+    }
+  }
+
+  function createLine(startNode, endNode) {
+    let line = document.createElement('div');
+    line.className = 'line';
+    canvas.insertBefore(line, canvas.firstChild);
+    lines.push({ line, startNode, endNode, button: null });
+    updateLinePosition(line, startNode, endNode);
+  }
+
+  function updateLines(movedNode) {
+    lines.forEach(({ line, startNode, endNode, button }) => {
+      if (startNode === movedNode || endNode === movedNode) {
+        updateLinePosition(line, startNode, endNode, button);
+      }
+    });
+  }
+
+  function updateLinePosition(line, startNode, endNode, button) {
+    const startRect = startNode.getBoundingClientRect();
+    const endRect = endNode.getBoundingClientRect();
+    const startX = startRect.left + startRect.width / 2;
+    const startY = startRect.top + startRect.height / 2;
+    const endX = endRect.left + endRect.width / 2;
+    const endY = endRect.top + endRect.height / 2;
+    const length = Math.sqrt((endX - startX) ** 2 + (endY - startY) ** 2);
+    const angle = Math.atan2(endY - startY, endX - startX) * 180 / Math.PI;
+    line.style.width = `${length}px`;
+    line.style.left = `${startX}px`;
+    line.style.top = `${startY - 1}px`;
+    line.style.transform = `rotate(${angle}deg)`;
+
+    if (!button) {
+      button = document.createElement('img');
+      button.className = 'line-button';
+      button.src = 'https://img.icons8.com/material-outlined/24/ffffff/plus--v1.png';
+      button.addEventListener('click', function() {
+        handleButtonClick(button, startNode, endNode);
+      });
+      canvas.appendChild(button);
+      lines.find(l => l.line === line).button = button;
+    }
+    const buttonX = (startX + endX) / 2;
+    const buttonY = (startY + endY) / 2;
+    button.style.left = `${buttonX - button.offsetWidth / 2}px`;
+    button.style.top = `${buttonY - button.offsetHeight / 2}px`;
+  }
+
+  function handleButtonClick(button, startNode, endNode) {
+  // Change the button to an image
+  button.src = 'https://source.unsplash.com/random/48x48?sig=' + Math.random();
+  button.onload = () => {
+    // Once the image is loaded, center it between the nodes
+    centerElementBetweenNodes(button, startNode, endNode);
+  };
+
+  
+}
+
+function centerElementBetweenNodes(element, startNode, endNode) {
+  const startRect = startNode.getBoundingClientRect();
+  const endRect = endNode.getBoundingClientRect();
+  const startX = startRect.left + startRect.width / 2;
+  const startY = startRect.top + startRect.height / 2;
+  const endX = endRect.left + endRect.width / 2;
+  const endY = endRect.top + endRect.height / 2;
+
+  const centerX = (startX + endX) / 2 - element.offsetWidth / 2;
+  const centerY = (startY + endY) / 2 - element.offsetHeight / 2;
+
+  element.style.left = `${centerX}px`;
+  element.style.top = `${centerY}px`;
+}
+
+
+</script>
+
+</body>
+</html>

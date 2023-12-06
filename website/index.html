@@ -125,6 +125,9 @@
         node.style.top = `${y - 48}px`;
         let img = new Image();
         img.src = "https://jpf.org.au/jpf/jpfmedia/Gallery_Nagai1-260x227.jpg"
+
+        // sendToServer(img.src, node.id);
+
         img.onload = () => {
             img.style.height = "100px";
             img.style.width = "100px";
@@ -137,6 +140,12 @@
         if (nodes.length > 1) {
           createLine(nodes[nodes.length - 2], node);
         }
+      }
+      function sendToServer(img, id) {
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "http://localhost:5000/", true);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.send(JSON.stringify({ action: embed, img: img, id: id }));
       }
 
       function createLine(startNode, endNode) {
@@ -236,7 +245,6 @@
             // Update button position
             button.style.left = `${newButtonX - canvasRect.left}px`;
             button.style.top = `${newButtonY - canvasRect.top}px`;
-
             printDistances(button, startNode, endNode);
           };
 
@@ -298,14 +306,21 @@
 
         // print out a json object that contains
         // the id of the start node, the id of the end node, and the distance between them
+        // normalized by the distance between the nodes rounded
+        // to 2 decimal places
+
+
+
+
         console.log(
           JSON.stringify({
             startNodeId: startNode.id,
             endNodeId: endNode.id,
-            distance: distanceBetweenNodes,
-            startToButton: distanceFromStartNodeToButton,
+            distance: distanceFromStartNodeToButton/distanceBetweenNodes,
           })
         );
+
+
       }
 
       // Helper function to calculate the distance between two points

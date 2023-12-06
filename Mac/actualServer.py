@@ -1,23 +1,24 @@
-from pipeline import CustomPipeline
-from diffusers import LCMScheduler
-import torch
-from transformers import CLIPTextModel
-from diffusers.pipelines.stable_diffusion import StableDiffusionPipelineOutput
-from torchvision import transforms
-import torch
-from transformers import CLIPImageProcessor, CLIPVisionModelWithProjection, AutoTokenizer, CLIPTextModelWithProjection
-from diffusers.models.attention_processor import AttnProcessor2_0
+import io
 import requests
-from PIL import Image
+
 import matplotlib.pyplot as plt
 import torch
 from PIL import Image
-# import flask 
-from flask import Flask, request, jsonify
-from PIL import Image
+from flask import Flask, request, jsonify, Response
 from io import BytesIO
-import io
-from flask import Response
+from torchvision import transforms
+from transformers import (
+    CLIPTextModel, 
+    CLIPImageProcessor, 
+    CLIPVisionModelWithProjection, 
+    AutoTokenizer, 
+    CLIPTextModelWithProjection
+)
+from diffusers import LCMScheduler
+from diffusers.pipelines.stable_diffusion import StableDiffusionPipelineOutput
+from diffusers.models.attention_processor import AttnProcessor2_0
+from pipeline import CustomPipeline
+
 
 app = Flask(__name__)
 
@@ -36,23 +37,10 @@ do_classifier_free_guidance = True
 dtype = next(image_encoder.parameters()).dtype
 
 
-
-def encode_text(text):
-    model = CLIPTextModelWithProjection.from_pretrained("openai/clip-vit-large-patch14").to(device=device)
-    tokenizer = AutoTokenizer.from_pretrained("openai/clip-vit-large-patch14")
-
-    inputs = tokenizer([text], padding=True, return_tensors="pt").to(device)
-
-    outputs = model(**inputs)
-    text_embeds = outputs.text_embeds
-
-    return text_embeds
-
 def encode_image(image_encoder, feature_extractor, dtype, image, text, device, num_images_per_prompt):
     if not isinstance(image, torch.Tensor):
         image = feature_extractor(images=image, return_tensors="pt").pixel_values
 
-    text_embeddings = encode_text(text)
     print("shape of the input image(tensor) is: "+ str(image.shape))
     image = image.to(device=device, dtype=dtype)
     image_embeddings = image_encoder(image).image_embeds
@@ -84,7 +72,6 @@ def load_model():
     )
     pipe.scheduler = LCMScheduler.from_config(pipe.scheduler.config)
     pipe.text_encoder = CLIPTextModel.from_pretrained("openai/clip-vit-large-patch14").to(device=device)
-    pipe.generator = torch.Generator(device).manual_seed(0)
 
     pipe.unet.set_attn_processor(AttnProcessor2_0())
 
@@ -143,15 +130,11 @@ def generate_image(latents): # takes in latents as input and generates an image 
   images = pipe(latents, num_inference_steps=4, guidance_scale=1.2, num_images_per_prompt=1, generator=generator)
   return images
 
-
-
-app = Flask(__name__)
-pipe = load_model().to(device)
-
 def mix_images(image_a, image_b, mix_value):
     return image_a * (1 - mix_value) + image_b * mix_value
 
 latents_store = {}
+pipe = load_model().to(device)
 
 @app.route('/store_latent', methods=['POST'])
 def store_latent():

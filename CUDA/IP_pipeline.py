@@ -345,7 +345,6 @@ pipe.load_ip_adapter("h94/IP-Adapter", subfolder="models", weight_name="ip-adapt
 
 generator = torch.Generator("mps").manual_seed(0)
 
-pipe.enable_attention_slicing()
 
 
 pipe(

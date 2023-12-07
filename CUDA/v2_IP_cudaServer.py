@@ -1,5 +1,8 @@
+# if imports fail install diffusers from github (pip install git+https://github.com/huggingface/diffusers.git)
+
 import io
 import requests
+import time
 
 
 from diffusers import DiffusionPipeline
@@ -390,10 +393,16 @@ def process_latents(latents, operation): # apply mean, average, etc
 
 def generate_image(latents): # takes in latents as input and generates an image with SD
   # ATTENTION: FOR SOME REASON, SETTING GUIDANCE SCALE TO 1 ABSOLUTELY FUCKS UP THE WHOLE PIPELINE, TREASURE YOUR BRAIN CELLS
+
+    # Generate a blank black image of size 512x512
+  blank_image = torch.zeros((1, 3, 512, 512), device="cuda")
+    # Convert the blank black image to a PIL image
+  blank_image_pil = transforms.ToPILImage()(blank_image.squeeze(0))
+    
   images = pipe(
         prompt="best quality, high quality",
         input_image_embeds=latents,
-        ip_adapter_image=load_image("https://pbs.twimg.com/profile_images/1548311632597553154/WYGE5NGW_400x400.jpg"),  # TODO: Just to make the ip adapter happy. fix this (remove image dependency). The image is not used in the pipeline
+        ip_adapter_image=blank_image_pil, 
         num_inference_steps=4,
         guidance_scale=1.2,
         generator=generator,
@@ -418,6 +427,10 @@ pipe.load_lora_weights(lcm_lora_id)
 pipe.scheduler = LCMScheduler.from_config(pipe.scheduler.config)
 pipe.enable_model_cpu_offload()
 
+
+@app.route('/ping', methods=['GET'])
+def ping():
+    return jsonify({'message': 'pong'}), 200
 
 @app.route('/store_latent', methods=['POST'])
 def store_latent():
@@ -475,6 +488,23 @@ def slerp_route():
 
     return Response(img_byte_arr, mimetype='image/jpeg')
 
+@app.route('/avg', methods=['GET'])
+def generate_avg_time():
+    image = load_image("https://is1-ssl.mzstatic.com/image/thumb/Purple1/v4/a7/75/85/a77585b2-1818-46cc-0e18-2669cb1869a2/source/512x512bb.jpg")
+    image = image.resize((512, 512))
+    
+    image_embeds, negative_image_embeds = CustomPipeline.encode_image(
+                pipe, image, device, 1, output_hidden_states=False
+                )
+    # concat
+    latent = torch.cat([negative_image_embeds, image_embeds])
+    start_time = time.time()
+    for _ in range(5):
+        generate_image(latent).images[0]
+    end_time = time.time()
+    avg_time = (end_time - start_time) / 20
+    return jsonify({'average_time': avg_time}), 200
+
 
 @app.route('/mix', methods=['POST'])
 def mix():
@@ -506,6 +536,8 @@ def mix():
 
 
     return Response(img_byte_arr, mimetype='image/jpeg')
+
+
 
 
 

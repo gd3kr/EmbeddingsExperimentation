@@ -1,5 +1,7 @@
 import io
 import requests
+import time
+
 
 import matplotlib.pyplot as plt
 import torch
@@ -19,9 +21,13 @@ from diffusers.pipelines.stable_diffusion import StableDiffusionPipelineOutput
 from diffusers.models.attention_processor import AttnProcessor2_0
 from pipeline import CustomPipeline
 import base64
+from diffusers.utils import load_image
 
 
 app = Flask(__name__)
+CORS(app)
+# CORS(app, resources={r"/mix": {"origins": "http://localhost:5500"}})
+
 
 adapter_id = "latent-consistency/lcm-lora-sdv1-5"
 base_model = "lambdalabs/sd-image-variations-diffusers"
@@ -205,10 +211,25 @@ def slerp_route():
 def ping():
     return jsonify({'message': 'pong'}), 200
 
+@app.route('/avg', methods=['GET'])
+def generate_avg_time():
+    image_1 = load_image("https://is1-ssl.mzstatic.com/image/thumb/Purple1/v4/a7/75/85/a77585b2-1818-46cc-0e18-2669cb1869a2/source/512x512bb.jpg")
+    image_2 = load_image("https://is1-ssl.mzstatic.com/image/thumb/Purple1/v4/a7/75/85/a77585b2-1818-46cc-0e18-2669cb1869a2/source/512x512bb.jpg")
 
+    latent_1 = get_latents(image_1)
+    latent_2 = get_latents(image_2)
+    start_time = time.time()
+    for _ in range(20):
+        latent = mix_images(latent_1, latent_2, 0.5)
+
+        generate_image(latent).images[0]
+    end_time = time.time()
+    avg_time = (end_time - start_time) / 20
+    return jsonify({'average_time': avg_time}), 200
 
 @app.route('/mix', methods=['POST'])
 def mix():
+    start_time = time.time()
     data = request.get_json()
     id_a = data['id_a']
     id_b = data['id_b']
@@ -232,7 +253,12 @@ def mix():
     img_byte_arr = img_byte_arr.getvalue()
 
 
+    end_time = time.time()
+
+    print(f"Processing time: {end_time - start_time} seconds")
     return Response(img_byte_arr, mimetype='image/jpeg')
+
+
 
 if __name__ == '__main__':
     app.run()

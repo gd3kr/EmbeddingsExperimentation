@@ -123,8 +123,37 @@
           "draggable node w-24 h-24 border border-gray-300 absolute cursor-move loading";
         node.style.left = `${x - 48}px`;
         node.style.top = `${y - 48}px`;
-        let img = new Image();
-        img.src = "https://jpf.org.au/jpf/jpfmedia/Gallery_Nagai1-260x227.jpg"
+
+        var img = new Image();
+        // Code to send a POST request to the /mix endpoint
+        var xhr = new XMLHttpRequest();
+            xhr.open("POST", "http://127.0.0.1:5000/mix", true);
+            xhr.setRequestHeader("Content-Type", "application/json");
+            xhr.onreadystatechange = function() {
+    if (xhr.readyState === XMLHttpRequest.DONE) {
+        var status = xhr.status;
+        if (status === 0 || (status >= 200 && status < 400)) {
+            // The request has been completed successfully
+            var blob = new Blob([xhr.response], { type: 'image/jpeg' });
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(blob);
+        } else {
+            // Handle the error
+        }
+    }
+};
+
+xhr.responseType = 'blob';
+            xhr.send(JSON.stringify({
+              "id_a": 1,
+              "id_b":2,
+              "mix_value": 0.5 // Assuming a default mix value of 0.5
+            }));
+        // let img = new Image();
+        // img.src = "https://jpf.org.au/jpf/jpfmedia/Gallery_Nagai1-260x227.jpg"
 
         // sendToServer(img.src, node.id);
 
@@ -160,9 +189,43 @@
         lines.forEach(({ line, startNode, endNode, button }) => {
           if (startNode === movedNode || endNode === movedNode) {
             updateLinePosition(line, startNode, endNode, button);
+            
+
           }
         });
       }
+
+// // Code to send a POST request to the /mix endpoint
+// var xhr = new XMLHttpRequest();
+//             xhr.open("POST", "http://127.0.0.1:5000/mix", true);
+//             xhr.setRequestHeader("Content-Type", "application/json");
+//             xhr.onreadystatechange = function() {
+//     if (xhr.readyState === XMLHttpRequest.DONE) {
+//         var status = xhr.status;
+//         if (status === 0 || (status >= 200 && status < 400)) {
+//             // The request has been completed successfully
+//             var blob = new Blob([xhr.response], { type: 'image/jpeg' });
+//             var reader = new FileReader();
+//             reader.onload = function(e) {
+//                 var img = new Image();
+//                 img.src = e.target.result;
+//                 img.onload = function() {
+//                     movedNode.style.backgroundImage = 'url(' + img.src + ')';
+//                 };
+//             };
+//             reader.readAsDataURL(blob);
+//         } else {
+//             // Handle the error
+//         }
+//     }
+// };
+
+// xhr.responseType = 'blob';
+//             xhr.send(JSON.stringify({
+//               "id_a": 1,
+//               "id_b":2,
+//               "mix_value": 0.5 // Assuming a default mix value of 0.5
+//             }));
 
       function updateLinePosition(line, startNode, endNode, button) {
         const startRect = startNode.getBoundingClientRect();

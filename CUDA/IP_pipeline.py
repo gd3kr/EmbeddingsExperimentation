@@ -8,6 +8,8 @@ from diffusers.utils.torch_utils import randn_tensor
 from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 from diffusers.utils import load_image
 from diffusers.models import ImageProjection
+# torchvision transforms
+from torchvision import transforms
 
 
 
@@ -141,6 +143,7 @@ class CustomPipeline(StableDiffusionPipeline):
         generator: Optional[Union[torch.Generator, List[torch.Generator]]] = None,
         latents: Optional[torch.FloatTensor] = None,
         prompt_embeds: Optional[torch.FloatTensor] = None,
+        input_image_embeds: Optional[torch.FloatTensor] = None,
         negative_prompt_embeds: Optional[torch.FloatTensor] = None,
         ip_adapter_image: Optional[PipelineImageInput] = None,
         output_type: Optional[str] = "pil",
@@ -225,8 +228,11 @@ class CustomPipeline(StableDiffusionPipeline):
             image_embeds, negative_image_embeds = self.encode_image(
                 ip_adapter_image, device, num_images_per_prompt, output_hidden_states=output_hidden_state
             )
+            print("shape of the image embeds is: " + str(image_embeds.shape))
+            print("shape of the negative image embeds is: " + str(negative_image_embeds.shape))
             if self.do_classifier_free_guidance:
                 image_embeds = torch.cat([negative_image_embeds, image_embeds])
+                print("shape of the image embeds after concatenation is: " + str(image_embeds.shape))
         
         print("output_hidden_state is: " + str(output_hidden_state))
 
@@ -251,7 +257,7 @@ class CustomPipeline(StableDiffusionPipeline):
         extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
 
         # 6.1 Add image embeds for IP-Adapter
-        added_cond_kwargs = {"image_embeds": image_embeds} if ip_adapter_image is not None else None
+        added_cond_kwargs = {"image_embeds": input_image_embeds} if ip_adapter_image is not None else None
 
         # 6.2 Optionally get Guidance Scale Embedding
         timestep_cond = None
@@ -339,18 +345,24 @@ model_id =  "sd-dreambooth-library/herge-style"
 
 
 pipe = CustomPipeline.from_pretrained(model_id).to("mps")
-image = load_image("https://user-images.githubusercontent.com/24734142/266492875-2d50d223-8475-44f0-a7c6-08b51cb53572.png")
+image = load_image("https://thicc.mywaifulist.moe/waifus/213/635d8742dc9d8307d7afb81ca1fa3153f83ff67d0d46a88a3acd52f7c17dd396_thumb.png")
 
 pipe.load_ip_adapter("h94/IP-Adapter", subfolder="models", weight_name="ip-adapter_sd15.bin")
 
 generator = torch.Generator("mps").manual_seed(0)
 
+image_embeds, negative_image_embeds = CustomPipeline.encode_image(
+               pipe, image, "mps", 1, output_hidden_states=False
+            )
+# concat
+image_latents = torch.cat([negative_image_embeds, image_embeds])
 
 
 pipe(
-    prompt="best quality, high quality",
+    prompt="best quality, high quality, frowning",
+    input_image_embeds=image_latents,
     ip_adapter_image=image, 
-    num_inference_steps=30,
+    num_inference_steps=50,
     guidance_scale=4,
     generator=generator,
-).images[0].save("generated_image.png")
+).images[0].save("generated_image_frowning.png")

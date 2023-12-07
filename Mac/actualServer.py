@@ -22,9 +22,6 @@ from pipeline import CustomPipeline
 
 app = Flask(__name__)
 
-
-
-
 adapter_id = "latent-consistency/lcm-lora-sdv1-5"
 base_model = "lambdalabs/sd-image-variations-diffusers"
 

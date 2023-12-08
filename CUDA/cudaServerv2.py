@@ -22,10 +22,15 @@ from diffusers.models.attention_processor import AttnProcessor2_0
 from pipeline import CustomPipeline
 import base64
 from diffusers.utils import load_image
+from sfast.compilers.stable_diffusion_pipeline_compiler import (
+    compile, CompilationConfig)
 
+
+import torch._dynamo
+torch._dynamo.config.suppress_errors=True
 
 app = Flask(__name__)
-CORS(app)
+# CORS(app)
 # CORS(app, resources={r"/mix": {"origins": "http://localhost:5500"}})
 
 
@@ -76,15 +81,8 @@ def load_model():
     )
     pipe.scheduler = LCMScheduler.from_config(pipe.scheduler.config)
     pipe.text_encoder = CLIPTextModel.from_pretrained("openai/clip-vit-large-patch14").to(device=device).half()
+    pipe.safety_checker = None
 
-
-    # pipe.unet.set_attn_processor(AttnProcessor2_0())
-
-    pipe.enable_xformers_memory_efficient_attention()
-
-    # pipe.enable_xformers_memory_efficient_attention()
-    # pipe.disable_xformers_memory_efficient_attention()
-    print("loading lora weights")
     tiny = False
     lcm = True
     doCompile = False
@@ -148,9 +146,9 @@ def process_latents(latents, operation): # apply mean, average, etc
       return torch.stack(interpolated)
 
 
-def generate_image(latents): # takes in latents as input and generates an image with SD
+def generate_image(latents, prompt_embeds=None, negative_prompt_embeds=None): # takes in latents as input and generates an image with SD
   # ATTENTION: FOR SOME REASON, SETTING GUIDANCE SCALE TO 1 ABSOLUTELY FUCKS UP THE WHOLE PIPELINE, TREASURE YOUR BRAIN CELLS
-  images = pipe(latents, num_inference_steps=4,  guidance_scale=1.2, num_images_per_prompt=1, generator=generator)
+  images = pipe(latents, num_inference_steps=4,  guidance_scale=1.2, num_images_per_prompt=1, generator=generator, prompt_embeds=prompt_embeds, negative_prompt_embeds=negative_prompt_embeds)
   return images
 
 def mix_images(image_a, image_b, mix_value):
@@ -158,6 +156,51 @@ def mix_images(image_a, image_b, mix_value):
 
 latents_store = {}
 pipe = load_model().to(device)
+
+config = CompilationConfig.Default()
+# xformers and Triton are suggested for achieving best performance.
+try:
+    import xformers
+    config.enable_xformers = True
+    print("USING XFORMERS")
+except ImportError:
+    print('xformers not installed, skip')
+try:
+    import triton
+    config.enable_triton = True
+    print("USING TRITON")
+
+except ImportError:
+    print('Triton not installed, skip')
+    
+# CUDA Graph is suggested for small batch sizes and small resolutions to reduce CPU overhead.
+config.enable_cuda_graph = True
+
+print("COMPILING WITH stable-fast...")
+# pipe = compile(pipe, config)
+
+
+# NOTE: Warm it up.
+# The initial calls will trigger compilation and might be very slow.
+# After that, it should be very fast.
+image_1 = load_image("https://is1-ssl.mzstatic.com/image/thumb/Purple1/v4/a7/75/85/a77585b2-1818-46cc-0e18-2669cb1869a2/source/512x512bb.jpg")
+image_2 = load_image("https://is1-ssl.mzstatic.com/image/thumb/Purple1/v4/a7/75/85/a77585b2-1818-46cc-0e18-2669cb1869a2/source/512x512bb.jpg")
+
+latent_1 = get_latents(image_1)
+latent_2 = get_latents(image_2)
+latent = mix_images(latent_1, latent_2, 0.5)
+
+prompt_embeds, negative_prompt_embeds = CustomPipeline.encode_prompt(
+        prompt,
+        "high quality",
+        num_images_per_prompt,
+        self.do_classifier_free_guidance,
+        "",
+    )
+
+for _ in range(10):
+    generate_image(latent, prompt_embeds, negative_prompt_embeds).images[0]
+
 
 @app.route('/store_latent', methods=['POST'])
 def store_latent():

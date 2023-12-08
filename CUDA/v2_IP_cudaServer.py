@@ -37,7 +37,9 @@ from PIL import Image
 # BytesIO
 from io import BytesIO
 
-
+from sfast.compilers.stable_diffusion_pipeline_compiler import (
+    compile, CompilationConfig)
+ 
 
 
 
@@ -222,6 +224,9 @@ class CustomPipeline(StableDiffusionPipeline):
             clip_skip=self.clip_skip,
         )
 
+
+        
+
         # For classifier free guidance, we need to do two forward passes.
         # Here we concatenate the unconditional and text embeddings into a single batch
         # to avoid doing two forward passes
@@ -272,7 +277,9 @@ class CustomPipeline(StableDiffusionPipeline):
         extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
 
         # 6.1 Add image embeds for IP-Adapter
-        added_cond_kwargs = {"image_embeds": input_image_embeds} if ip_adapter_image is not None else None
+        added_cond_kwargs = {}
+        if ip_adapter_image is not None:
+            added_cond_kwargs["image_embeds"] = input_image_embeds
 
         # 6.2 Optionally get Guidance Scale Embedding
         timestep_cond = None
@@ -290,6 +297,7 @@ class CustomPipeline(StableDiffusionPipeline):
                 # expand the latents if we are doing classifier free guidance
                 latent_model_input = torch.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
+                #
 
                 # predict the noise residual
                 noise_pred = self.unet(
@@ -357,16 +365,23 @@ class CustomPipeline(StableDiffusionPipeline):
     
 
 def load_model():
-    model_id =  "stabilityai/sdxl-turbo"
-    pipe = CustomPipeline.from_pretrained(model_id).to("cuda")
+    model_id =  "sd-dreambooth-library/herge-style"
+    pipe = CustomPipeline.from_pretrained(model_id, torch_dtype=torch.float16).to("cuda")
+    pipe.safety_checker = None
 
-    pipe.load_ip_adapter("h94/IP-Adapter", subfolder="sdxl_models", weight_name="ip-adapter_sdxl.bin")
+    pipe.load_ip_adapter("h94/IP-Adapter", subfolder="models", weight_name="ip-adapter_sd15.bin")
+
+    pipe.scheduler = LCMScheduler.from_config(pipe.scheduler.config)
+
+    pipe.load_lora_weights("latent-consistency/lcm-lora-sdv1-5")
+    
     # pipe.unet.set_attn_processor(AttnProcessor2_0())
 
-    pipe.enable_xformers_memory_efficient_attention()
-    pipe.enable_model_cpu_offload()
+    # pipe.enable_xformers_memory_efficient_attention()
+    # pipe.enable_model_cpu_offload()
     # pipe.disable_xformers_memory_efficient_attention()
     return pipe
+    
 
 
 def slerp(a, b, n, eps=1e-8):
@@ -399,14 +414,19 @@ def generate_image(latents): # takes in latents as input and generates an image 
     # Convert the blank black image to a PIL image
   blank_image_pil = transforms.ToPILImage()(blank_image.squeeze(0))
     
+  start = time.time()
   images = pipe(
-        prompt="best quality, high quality",
+        prompt="high quality",
         input_image_embeds=latents,
         ip_adapter_image=blank_image_pil, 
         num_inference_steps=4,
         guidance_scale=1.2,
         generator=generator,
+        height=512,
+        width=512,
     )
+  end = time.time()
+  print("PIPE TIME: ", end-start)
   return images
 
 def mix_images(image_a, image_b, mix_value):
@@ -418,14 +438,53 @@ latents_store = {}
 device = "cuda"
 generator = torch.Generator(device=device).manual_seed(0)
 
-model_id =  "sd-dreambooth-library/herge-style"
-lcm_lora_id = "latent-consistency/lcm-lora-sdv1-5"
+pipe = load_model().to("cuda")
 
-pipe = CustomPipeline.from_pretrained(model_id, torch_dtype=torch.float16).to("cuda")
-pipe.load_ip_adapter("h94/IP-Adapter", subfolder="models", weight_name="ip-adapter_sd15.bin")
-pipe.load_lora_weights(lcm_lora_id)
-pipe.scheduler = LCMScheduler.from_config(pipe.scheduler.config)
-pipe.enable_model_cpu_offload()
+config = CompilationConfig.Default()
+# xformers and Triton are suggested for achieving best performance.
+try:
+    import xformers
+    config.enable_xformers = True
+    print("USING XFORMERS")
+except ImportError:
+    print('xformers not installed, skip')
+try:
+    import triton
+    config.enable_triton = True
+    print("USING TRITON")
+
+except ImportError:
+    print('Triton not installed, skip')
+    
+# CUDA Graph is suggested for small batch sizes and small resolutions to reduce CPU overhead.
+config.enable_cuda_graph = True
+
+print("COMPILING WITH stable-fast...")
+pipe = compile(pipe, config)
+
+print("COMPILED!!!!!")
+
+# exit(1)
+
+
+# NOTE: Warm it up.
+# The initial calls will trigger compilation and might be very slow.
+# After that, it should be very fast.
+image = load_image("https://is1-ssl.mzstatic.com/image/thumb/Purple1/v4/a7/75/85/a77585b2-1818-46cc-0e18-2669cb1869a2/source/512x512bb.jpg")
+
+
+
+image_embeds, negative_image_embeds = CustomPipeline.encode_image(
+                pipe, image, device, 1, output_hidden_states=False
+                )
+    # concat
+latent = torch.cat([negative_image_embeds, image_embeds])
+latent = mix_images(latent, latent, 0.5)
+
+        
+
+for _ in range(10):
+    generate_image(latent).images[0]
 
 
 @app.route('/ping', methods=['GET'])
@@ -502,7 +561,7 @@ def generate_avg_time():
     for _ in range(5):
         generate_image(latent).images[0]
     end_time = time.time()
-    avg_time = (end_time - start_time) / 20
+    avg_time = (end_time - start_time) / 5
     return jsonify({'average_time': avg_time}), 200
 
 
@@ -536,10 +595,6 @@ def mix():
 
 
     return Response(img_byte_arr, mimetype='image/jpeg')
-
-
-
-
 
 if __name__ == '__main__':
     app.run()

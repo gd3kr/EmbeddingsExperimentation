@@ -77,13 +77,14 @@ def load_model():
         base_model,
         # "lambdalabs/sd-image-variations-diffusers",
         revision="v2.0",
+        torch_dtype=torch.float16
         # try usign bits and bytes for faster inference using 8 bit precision
     )
     pipe.scheduler = LCMScheduler.from_config(pipe.scheduler.config)
-    pipe.text_encoder = CLIPTextModel.from_pretrained("openai/clip-vit-large-patch14").to(device=device).half()
+    pipe.text_encoder = CLIPTextModel.from_pretrained("openai/clip-vit-large-patch14").to(device=device)
     pipe.safety_checker = None
 
-    tiny = False
+    tiny = True
     lcm = True
     doCompile = False
 
@@ -120,7 +121,7 @@ def get_latents(image):
     ])
 
     # text="flowers"
-    output= encode_image(image_encoder, feature_extractor, dtype, tform(image).unsqueeze(0), "", device, 1)
+    output= encode_image(image_encoder, feature_extractor, dtype, tform(image).unsqueeze(0), "", device, 1).half()
     return output
 
 
@@ -146,9 +147,9 @@ def process_latents(latents, operation): # apply mean, average, etc
       return torch.stack(interpolated)
 
 
-def generate_image(latents, prompt_embeds=None, negative_prompt_embeds=None): # takes in latents as input and generates an image with SD
+def generate_image(latents): # takes in latents as input and generates an image with SD
   # ATTENTION: FOR SOME REASON, SETTING GUIDANCE SCALE TO 1 ABSOLUTELY FUCKS UP THE WHOLE PIPELINE, TREASURE YOUR BRAIN CELLS
-  images = pipe(latents, num_inference_steps=4,  guidance_scale=1.2, num_images_per_prompt=1, generator=generator, prompt_embeds=prompt_embeds, negative_prompt_embeds=negative_prompt_embeds)
+  images = pipe(latents, num_inference_steps=4,  guidance_scale=1.2, num_images_per_prompt=1, generator=generator)
   return images
 
 def mix_images(image_a, image_b, mix_value):
@@ -177,7 +178,7 @@ except ImportError:
 config.enable_cuda_graph = True
 
 print("COMPILING WITH stable-fast...")
-# pipe = compile(pipe, config)
+pipe = compile(pipe, config)
 
 
 # NOTE: Warm it up.
@@ -190,16 +191,10 @@ latent_1 = get_latents(image_1)
 latent_2 = get_latents(image_2)
 latent = mix_images(latent_1, latent_2, 0.5)
 
-prompt_embeds, negative_prompt_embeds = CustomPipeline.encode_prompt(
-        prompt,
-        "high quality",
-        num_images_per_prompt,
-        self.do_classifier_free_guidance,
-        "",
-    )
+
 
 for _ in range(10):
-    generate_image(latent, prompt_embeds, negative_prompt_embeds).images[0]
+    generate_image(latent).images[0]
 
 
 @app.route('/store_latent', methods=['POST'])

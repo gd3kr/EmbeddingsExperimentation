@@ -19,6 +19,7 @@ from torchvision import transforms
 
 
 
+
 import PIL.Image
 import torch
 from packaging import version
@@ -225,8 +226,6 @@ class CustomPipeline(StableDiffusionPipeline):
         )
 
 
-        
-
         # For classifier free guidance, we need to do two forward passes.
         # Here we concatenate the unconditional and text embeddings into a single batch
         # to avoid doing two forward passes
@@ -238,21 +237,21 @@ class CustomPipeline(StableDiffusionPipeline):
 
             print("output_hidden_state is: " + str(output_hidden_state))
 
-            # PRINT POSITIONAL ARGUMENTS
-            print("printing positional arguments")
-            print("device is: " + str(device))
-            print("num_images_per_prompt is: " + str(num_images_per_prompt))
-            print("output_hidden_state is: " + str(output_hidden_state))
+            # # PRINT POSITIONAL ARGUMENTS
+            # print("printing positional arguments")
+            # print("device is: " + str(device))
+            # print("num_images_per_prompt is: " + str(num_images_per_prompt))
+            # print("output_hidden_state is: " + str(output_hidden_state))
 
 
-            image_embeds, negative_image_embeds = self.encode_image(
-                ip_adapter_image, device, num_images_per_prompt, output_hidden_states=output_hidden_state
-            )
-            print("shape of the image embeds is: " + str(image_embeds.shape))
-            print("shape of the negative image embeds is: " + str(negative_image_embeds.shape))
-            if self.do_classifier_free_guidance:
-                image_embeds = torch.cat([negative_image_embeds, image_embeds])
-                print("shape of the image embeds after concatenation is: " + str(image_embeds.shape))
+            # image_embeds, negative_image_embeds = self.encode_image(
+            #     ip_adapter_image, device, num_images_per_prompt, output_hidden_states=output_hidden_state
+            # )
+            # print("shape of the image embeds is: " + str(image_embeds.shape))
+            # print("shape of the negative image embeds is: " + str(negative_image_embeds.shape))
+            # if self.do_classifier_free_guidance:
+            #     image_embeds = torch.cat([negative_image_embeds, image_embeds])
+            #     print("shape of the image embeds after concatenation is: " + str(image_embeds.shape))
         
         print("output_hidden_state is: " + str(output_hidden_state))
 
@@ -366,6 +365,7 @@ class CustomPipeline(StableDiffusionPipeline):
 
 def load_model():
     model_id =  "sd-dreambooth-library/herge-style"
+    # model_id = "runwayml/stable-diffusion-v1-5"
     pipe = CustomPipeline.from_pretrained(model_id, torch_dtype=torch.float16).to("cuda")
     pipe.safety_checker = None
 
@@ -377,7 +377,7 @@ def load_model():
     
     # pipe.unet.set_attn_processor(AttnProcessor2_0())
 
-    # pipe.enable_xformers_memory_efficient_attention()
+    pipe.enable_xformers_memory_efficient_attention()
     # pipe.enable_model_cpu_offload()
     # pipe.disable_xformers_memory_efficient_attention()
     return pipe
@@ -406,6 +406,7 @@ def process_latents(latents, operation): # apply mean, average, etc
       return torch.stack(interpolated)
 
 
+test_image = load_image("https://is1-ssl.mzstatic.com/image/thumb/Purple1/v4/a7/75/85/a77585b2-1818-46cc-0e18-2669cb1869a2/source/512x512bb.jpg")
 def generate_image(latents): # takes in latents as input and generates an image with SD
   # ATTENTION: FOR SOME REASON, SETTING GUIDANCE SCALE TO 1 ABSOLUTELY FUCKS UP THE WHOLE PIPELINE, TREASURE YOUR BRAIN CELLS
 
@@ -416,14 +417,14 @@ def generate_image(latents): # takes in latents as input and generates an image 
     
   start = time.time()
   images = pipe(
-        prompt="high quality",
+        prompt="",
         input_image_embeds=latents,
-        ip_adapter_image=blank_image_pil, 
+        ip_adapter_image=test_image,
         num_inference_steps=4,
         guidance_scale=1.2,
-        generator=generator,
-        height=512,
-        width=512,
+        # generator=generator,
+        # height=512,
+        # width=512,
     )
   end = time.time()
   print("PIPE TIME: ", end-start)

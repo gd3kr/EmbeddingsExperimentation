@@ -1,6 +1,7 @@
 import io
 import requests
 import time
+import numpy as np
 
 
 import matplotlib.pyplot as plt
@@ -24,6 +25,8 @@ import base64
 from diffusers.utils import load_image
 from sfast.compilers.stable_diffusion_pipeline_compiler import (
     compile, CompilationConfig)
+from flask_cors import CORS, cross_origin
+
 
 
 import torch._dynamo
@@ -31,7 +34,7 @@ torch._dynamo.config.suppress_errors=True
 
 app = Flask(__name__)
 # CORS(app)
-# CORS(app, resources={r"/mix": {"origins": "http://localhost:5500"}})
+CORS(app, resources={r"/*": {"origins": "http://localhost:5500"}})
 
 
 adapter_id = "latent-consistency/lcm-lora-sdv1-5"
@@ -149,7 +152,7 @@ def process_latents(latents, operation): # apply mean, average, etc
 
 def generate_image(latents): # takes in latents as input and generates an image with SD
   # ATTENTION: FOR SOME REASON, SETTING GUIDANCE SCALE TO 1 ABSOLUTELY FUCKS UP THE WHOLE PIPELINE, TREASURE YOUR BRAIN CELLS
-  images = pipe(latents, num_inference_steps=4,  guidance_scale=1.2, num_images_per_prompt=1, generator=generator)
+  images = pipe(latents, num_inference_steps=4,  guidance_scale=1.2, num_images_per_prompt=1, generator=generator, height=400, width=400)
   return images
 
 def mix_images(image_a, image_b, mix_value):
@@ -263,7 +266,52 @@ def generate_avg_time():
         generate_image(latent).images[0]
     end_time = time.time()
     avg_time = (end_time - start_time) / 20
+    print("Average time per image: ", avg_time)
     return jsonify({'average_time': avg_time}), 200
+
+
+# images = {id(a+b): images[] }
+
+images = {}
+
+@app.route("/pregenerate", methods=['POST'])
+def pregenerate():
+    start_time = time.time()
+    data = request.get_json()
+    id_a = data['id_a']
+    id_b = data['id_b']
+
+    num_images = data['num_images'] # the number of images to generate tweening    
+
+    # generates and saves images
+
+    # mix between 0 and 1 for n images
+    
+    step_values = np.linspace(0, 1, num_images)
+    for step in step_values:
+        interpolated_latent = slerp(latents_store[id_a], latents_store[id_b], step)
+        image = generate_image(interpolated_latent).images[0]
+        images_key = id_a + id_b
+        if images_key not in images:
+            images[images_key] = []
+
+        buffered = BytesIO()
+        image.save(buffered, format="JPEG")
+        img_str = base64.b64encode(buffered.getvalue())
+        img_base64 = img_str.decode('utf-8')
+        images[images_key].append(img_base64)
+
+    end_time = time.time()
+
+    print(f"Processing time: {end_time - start_time} seconds")
+    # Since Image objects are not JSON serializable, we need to convert them to a serializable format
+    # Convert images to a list of base64 encoded strings
+    
+
+    return jsonify({'images': images[images_key]}), 200
+
+
+
 
 @app.route('/mix', methods=['POST'])
 def mix():

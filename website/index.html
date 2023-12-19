@@ -1,412 +1,490 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Interactive Image and Line Drawing Tool</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
-      rel="stylesheet"
-    />
-    <style>
-      body {
-        font-family: "Inter", sans-serif;
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interactive Image and Line Drawing Tool</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: "Inter", sans-serif;
+    }
+
+    .draggable {
+      touch-action: none;
+      transition: transform 0.2s ease-in-out, box-shadow 0.3s ease-in-out;
+      cursor: pointer;
+    }
+
+    .slider {
+      touch-action: none;
+      cursor: pointer;
+    }
+
+    .line {
+      height: 2px;
+      position: absolute;
+      transform-origin: 0 0;
+      z-index: 0;
+      background-color: #4b5563;
+      /* Default line color */
+    }
+
+    .node {
+      z-index: 1;
+      background-size: cover;
+      background-position: center;
+      transition: filter 0.3s ease;
+    }
+
+    .node.loading {
+      filter: blur(5px);
+    }
+
+    .line-button {
+      position: absolute;
+      background-color: black;
+      color: white;
+      border: none;
+      padding: 7px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 100;
+      user-select: none;
+      z-index: 10;
+      /* disable cursor events */
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50">
+  <div id="canvas" class="w-full h-screen bg-white relative overflow-hidden">
+    <!-- Canvas will be populated with nodes, lines, and buttons here -->
+  </div>
+
+  <button id="resetButton" class="absolute top-4 right-4 bg-black text-white font-bold py-2 px-4 rounded">
+    Reset
+  </button>
+
+  <script>
+    let canvas = document.getElementById("canvas");
+    let resetButton = document.getElementById("resetButton");
+    let isDragging = false;
+    let dragOffset = { x: 0, y: 0 };
+    let nodes = [];
+    let lines = [];
+    let images = [];
+    let imageCount = 0;
+
+    canvas.addEventListener("mousedown", function (e) {
+      if (e.target === canvas) {
+        createNode(e.clientX, e.clientY);
+      } else if (e.target.classList.contains("draggable")) {
+        isDragging = true;
+        dragOffset.x = e.clientX - e.target.getBoundingClientRect().left;
+        dragOffset.y = e.clientY - e.target.getBoundingClientRect().top;
+        e.target.classList.add("z-10");
+        e.target.style.transform = "scale(1.1)";
+        e.target.style.boxShadow =
+          "0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08)";
       }
-      .draggable {
-        touch-action: none;
-        transition: transform 0.2s ease-in-out, box-shadow 0.3s ease-in-out;
-        cursor: pointer;
+    });
+
+    canvas.addEventListener("mousemove", function (e) {
+      if (isDragging) {
+        const draggable = document.querySelector(".draggable.z-10");
+        draggable.style.left = `${e.clientX - dragOffset.x}px`;
+        draggable.style.top = `${e.clientY - dragOffset.y}px`;
+        updateLines(draggable);
       }
-      .slider {
-        touch-action: none;
-        cursor: pointer;
+    });
+
+    canvas.addEventListener("mouseup", function (e) {
+      if (isDragging) {
+        const draggable = document.querySelector(".draggable.z-10");
+        draggable.classList.remove("z-10");
+        draggable.style.transform = "scale(1)";
+        draggable.style.boxShadow = "none";
+        isDragging = false;
+      }
+    });
+
+    resetButton.addEventListener("click", function () {
+      while (canvas.firstChild) {
+        canvas.removeChild(canvas.firstChild);
+      }
+      nodes = [];
+      lines = [];
+    });
+
+    function createNode(x, y) {
+      let node = document.createElement("div");
+      // set id to random 6 digit number
+      node.id = Math.floor(100000 + Math.random() * 900000);
+      node.className =
+        "draggable node w-[300px] h-[300px] border border-gray-300 absolute cursor-move loading";
+      node.style.left = `${x - 48}px`;
+      node.style.top = `${y - 48}px`;
+
+      var img = new Image();
+      // SET SRC
+      if (imageCount == 0) {
+        img.src = "https://jpf.org.au/jpf/jpfmedia/Gallery_Nagai1.jpg"
+        imageCount = 1;
+      } else {
+        img.src = "https://cdn.britannica.com/78/43678-050-F4DC8D93/Starry-Night-canvas-Vincent-van-Gogh-New-1889.jpg"
+        imageCount = 0;
       }
 
-      .line {
-        height: 2px;
-        position: absolute;
-        transform-origin: 0 0;
-        z-index: 0;
-        background-color: #4b5563; /* Default line color */
-      }
-      .node {
-        z-index: 1;
-        background-size: cover;
-        background-position: center;
-        transition: filter 0.3s ease;
-      }
-      .node.loading {
-        filter: blur(5px);
-      }
-      .line-button {
-        position: absolute;
-        background-color: black;
-        color: white;
-        border: none;
-        padding: 7px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 0.875rem;
-        font-weight: 500;
-        user-select: none;
-        z-index: 10;
-      }
-    </style>
-  </head>
-  <body class="bg-gray-50">
-    <div id="canvas" class="w-full h-screen bg-white relative overflow-hidden">
-      <!-- Canvas will be populated with nodes, lines, and buttons here -->
-    </div>
+      // const options = {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json', 'User-Agent': 'insomnia/8.4.5' },
+      //   body: JSON.stringify({
+      //     "image_url": img.src,
+      //     "id": node.id
+      //   })
+      // };
 
-    <button
-      id="resetButton"
-      class="absolute top-4 right-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-    >
-      Reset
-    </button>
+      // fetch('http://localhost:5000/store_latent', options)
+      //   .then(response => response.json())
+      //   .then(response => console.log(response))
+      //   .catch(err => console.error(err));
 
-    <script>
-      let canvas = document.getElementById("canvas");
-      let resetButton = document.getElementById("resetButton");
-      let isDragging = false;
-      let dragOffset = { x: 0, y: 0 };
-      let nodes = [];
-      let lines = [];
-
-      canvas.addEventListener("mousedown", function (e) {
-        if (e.target === canvas) {
-          createNode(e.clientX, e.clientY);
-        } else if (e.target.classList.contains("draggable")) {
-          isDragging = true;
-          dragOffset.x = e.clientX - e.target.getBoundingClientRect().left;
-          dragOffset.y = e.clientY - e.target.getBoundingClientRect().top;
-          e.target.classList.add("z-10");
-          e.target.style.transform = "scale(1.1)";
-          e.target.style.boxShadow =
-            "0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08)";
-        }
-      });
-
-      canvas.addEventListener("mousemove", function (e) {
-        if (isDragging) {
-          const draggable = document.querySelector(".draggable.z-10");
-          draggable.style.left = `${e.clientX - dragOffset.x}px`;
-          draggable.style.top = `${e.clientY - dragOffset.y}px`;
-          updateLines(draggable);
-        }
-      });
-
-      canvas.addEventListener("mouseup", function (e) {
-        if (isDragging) {
-          const draggable = document.querySelector(".draggable.z-10");
-          draggable.classList.remove("z-10");
-          draggable.style.transform = "scale(1)";
-          draggable.style.boxShadow = "none";
-          isDragging = false;
-        }
-      });
-
-      resetButton.addEventListener("click", function () {
-        while (canvas.firstChild) {
-          canvas.removeChild(canvas.firstChild);
-        }
-        nodes = [];
-        lines = [];
-      });
-
-      function createNode(x, y) {
-        let node = document.createElement("div");
-        // set id to random 6 digit number
-        node.id = Math.floor(100000 + Math.random() * 900000);
-        node.className =
-          "draggable node w-24 h-24 border border-gray-300 absolute cursor-move loading";
-        node.style.left = `${x - 48}px`;
-        node.style.top = `${y - 48}px`;
-
-        var img = new Image();
-        // Code to send a POST request to the /mix endpoint
-        var xhr = new XMLHttpRequest();
-            xhr.open("POST", "http://127.0.0.1:5000/mix", true);
-            xhr.setRequestHeader("Content-Type", "application/json");
-            xhr.onreadystatechange = function() {
-    if (xhr.readyState === XMLHttpRequest.DONE) {
-        var status = xhr.status;
-        if (status === 0 || (status >= 200 && status < 400)) {
+      // Code to send a POST request to the /mix endpoint
+      var xhr = new XMLHttpRequest();
+      xhr.open("POST", "http://127.0.0.1:5000/mix", true);
+      xhr.setRequestHeader("Content-Type", "application/json");
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState === XMLHttpRequest.DONE) {
+          var status = xhr.status;
+          if (status === 0 || (status >= 200 && status < 400)) {
             // The request has been completed successfully
             var blob = new Blob([xhr.response], { type: 'image/jpeg' });
             var reader = new FileReader();
-            reader.onload = function(e) {
-                img.src = e.target.result;
+            reader.onload = function (e) {
+              img.src = e.target.result;
             };
             reader.readAsDataURL(blob);
-        } else {
+          } else {
             // Handle the error
-        }
-    }
-};
-
-xhr.responseType = 'blob';
-            xhr.send(JSON.stringify({
-              "id_a": 1,
-              "id_b":2,
-              "mix_value": 0.5 // Assuming a default mix value of 0.5
-            }));
-        // let img = new Image();
-        // img.src = "https://jpf.org.au/jpf/jpfmedia/Gallery_Nagai1-260x227.jpg"
-
-        // sendToServer(img.src, node.id);
-
-        img.onload = () => {
-            img.style.height = "100px";
-            img.style.width = "100px";
-            img.style.backgroundSize = "cover";
-          node.classList.remove("loading");
-          node.style.backgroundImage = `url('${img.src}')`;
-        };
-        canvas.appendChild(node);
-        nodes.push(node);
-        if (nodes.length > 1) {
-          createLine(nodes[nodes.length - 2], node);
-        }
-      }
-      function sendToServer(img, id) {
-        var xhr = new XMLHttpRequest();
-        xhr.open("POST", "http://localhost:5000/", true);
-        xhr.setRequestHeader("Content-Type", "application/json");
-        xhr.send(JSON.stringify({ action: embed, img: img, id: id }));
-      }
-
-      function createLine(startNode, endNode) {
-        let line = document.createElement("div");
-        line.className = "line";
-        canvas.insertBefore(line, canvas.firstChild);
-        lines.push({ line, startNode, endNode, button: null });
-        updateLinePosition(line, startNode, endNode);
-      }
-
-      function updateLines(movedNode) {
-        lines.forEach(({ line, startNode, endNode, button }) => {
-          if (startNode === movedNode || endNode === movedNode) {
-            updateLinePosition(line, startNode, endNode, button);
-            
-
           }
-        });
-      }
-
-// // Code to send a POST request to the /mix endpoint
-// var xhr = new XMLHttpRequest();
-//             xhr.open("POST", "http://127.0.0.1:5000/mix", true);
-//             xhr.setRequestHeader("Content-Type", "application/json");
-//             xhr.onreadystatechange = function() {
-//     if (xhr.readyState === XMLHttpRequest.DONE) {
-//         var status = xhr.status;
-//         if (status === 0 || (status >= 200 && status < 400)) {
-//             // The request has been completed successfully
-//             var blob = new Blob([xhr.response], { type: 'image/jpeg' });
-//             var reader = new FileReader();
-//             reader.onload = function(e) {
-//                 var img = new Image();
-//                 img.src = e.target.result;
-//                 img.onload = function() {
-//                     movedNode.style.backgroundImage = 'url(' + img.src + ')';
-//                 };
-//             };
-//             reader.readAsDataURL(blob);
-//         } else {
-//             // Handle the error
-//         }
-//     }
-// };
-
-// xhr.responseType = 'blob';
-//             xhr.send(JSON.stringify({
-//               "id_a": 1,
-//               "id_b":2,
-//               "mix_value": 0.5 // Assuming a default mix value of 0.5
-//             }));
-
-      function updateLinePosition(line, startNode, endNode, button) {
-        const startRect = startNode.getBoundingClientRect();
-        const endRect = endNode.getBoundingClientRect();
-        const startX = startRect.left + startRect.width / 2;
-        const startY = startRect.top + startRect.height / 2;
-        const endX = endRect.left + endRect.width / 2;
-        const endY = endRect.top + endRect.height / 2;
-        const length = Math.sqrt((endX - startX) ** 2 + (endY - startY) ** 2);
-        const angle =
-          (Math.atan2(endY - startY, endX - startX) * 180) / Math.PI;
-        line.style.width = `${length}px`;
-        line.style.left = `${startX}px`;
-        line.style.top = `${startY - 1}px`;
-        line.style.transform = `rotate(${angle}deg)`;
-
-        if (!button) {
-          button = document.createElement("img");
-          // set id to random 6 digit number
-          button.id = Math.floor(100000 + Math.random() * 900000);
-          button.className = "line-button";
-          button.src =
-            "https://img.icons8.com/material-outlined/24/ffffff/plus--v1.png";
-            button.onload = () => {
-            // Once the image is loaded, center it between the nodes
-            centerElementBetweenNodes(button, startNode, endNode);
-            };
-
-          button.addEventListener("click", function () {
-            handleButtonClick(button, startNode, endNode);
-          });
-
-          button.draggable = true;
-          button.ondragstart = (event) => {
-            var transparentImage = new Image();
-            transparentImage.src =
-              "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
-            event.dataTransfer.setDragImage(transparentImage, 0, 0);
-          };
-          button.ondrag = (event) => {
-            event.preventDefault();
-            button.pointerEvents = "none";
-            if (event.clientX === 0 && event.clientY === 0) {
-              return; // Ignore the drag event if the clientX and clientY are 0
-            }
-            const buttonRect = button.getBoundingClientRect();
-            const buttonCenterX = buttonRect.left + buttonRect.width / 2;
-            const buttonCenterY = buttonRect.top + buttonRect.height / 2;
-            const deltaX = event.clientX - buttonCenterX;
-            const deltaY = event.clientY - buttonCenterY;
-
-            // Calculate the unit vector for the line
-            const lineLength = Math.sqrt(
-              (endX - startX) ** 2 + (endY - startY) ** 2
-            );
-            const lineUnitVectorX = (endX - startX) / lineLength;
-            const lineUnitVectorY = (endY - startY) / lineLength;
-
-            // Project the movement (deltaX, deltaY) onto the line vector
-            const dotProduct =
-              deltaX * lineUnitVectorX + deltaY * lineUnitVectorY;
-            const moveX = dotProduct * lineUnitVectorX;
-            const moveY = dotProduct * lineUnitVectorY;
-            let newButtonX = button.offsetLeft + moveX;
-            let newButtonY = button.offsetTop + moveY;
-
-            // Constrain the button within the canvas boundaries
-            const canvasRect = canvas.getBoundingClientRect();
-            const buttonWidth = button.offsetWidth;
-            const buttonHeight = button.offsetHeight;
-            newButtonX = Math.min(
-              Math.max(newButtonX, canvasRect.left),
-              canvasRect.right - buttonWidth
-            );
-            newButtonY = Math.min(
-              Math.max(newButtonY, canvasRect.top),
-              canvasRect.bottom - buttonHeight
-            );
-
-            // Update button position
-            button.style.left = `${newButtonX - canvasRect.left}px`;
-            button.style.top = `${newButtonY - canvasRect.top}px`;
-            printDistances(button, startNode, endNode);
-          };
-
-          canvas.appendChild(button);
-          lines.find((l) => l.line === line).button = button;
         }
-        const buttonX = (startX + endX) / 2;
-        const buttonY = (startY + endY) / 2;
-        button.style.left = `${buttonX - button.offsetWidth / 2}px`;
-        button.style.top = `${buttonY - button.offsetHeight / 2}px`;
-      }
+      };
 
-      function handleButtonClick(button, startNode, endNode) {
-        // Change the button to an image
+      // xhr.responseType = 'blob';
+      //             xhr.send(JSON.stringify({
+      //               "id_a": 1,
+      //               "id_b":2,
+      //               "mix_value": 0.5 // Assuming a default mix value of 0.5
+      //             }));
+      // let img = new Image();
+      // img.src = "https://jpf.org.au/jpf/jpfmedia/Gallery_Nagai1-260x227.jpg"
+
+      sendToServer(img.src, node.id);
+
+      img.onload = () => {
+        img.style.height = "400px";
+        img.style.width = "400px";
+        img.style.backgroundSize = "cover";
+        node.classList.remove("loading");
+        node.style.backgroundImage = `url('${img.src}')`;
+      };
+      canvas.appendChild(node);
+      nodes.push(node);
+      if (nodes.length > 1) {
+        createLine(nodes[nodes.length - 2], node);
+      }
+    }
+    function sendToServer(img, id) {
+      var xhr = new XMLHttpRequest();
+      xhr.open("POST", "http://127.0.0.1:5000/store_latent", true);
+      xhr.setRequestHeader("Content-Type", "application/json");
+      console.log("sending to server");
+      console.log({ image_url: img, id: id });
+      xhr.send(JSON.stringify({image_url:img, id:id}));
+    }
+
+    function createLine(startNode, endNode) {
+      let line = document.createElement("div");
+      line.className = "line";
+      canvas.insertBefore(line, canvas.firstChild);
+      lines.push({ line, startNode, endNode, button: null });
+      updateLinePosition(line, startNode, endNode);
+    }
+
+    function updateLines(movedNode) {
+      lines.forEach(({ line, startNode, endNode, button }) => {
+        if (startNode === movedNode || endNode === movedNode) {
+          updateLinePosition(line, startNode, endNode, button);
+
+
+        }
+      });
+    }
+
+    // // Code to send a POST request to the /mix endpoint
+    // var xhr = new XMLHttpRequest();
+    //             xhr.open("POST", "http://127.0.0.1:5000/mix", true);
+    //             xhr.setRequestHeader("Content-Type", "application/json");
+    //             xhr.onreadystatechange = function() {
+    //     if (xhr.readyState === XMLHttpRequest.DONE) {
+    //         var status = xhr.status;
+    //         if (status === 0 || (status >= 200 && status < 400)) {
+    //             // The request has been completed successfully
+    //             var blob = new Blob([xhr.response], { type: 'image/jpeg' });
+    //             var reader = new FileReader();
+    //             reader.onload = function(e) {
+    //                 var img = new Image();
+    //                 img.src = e.target.result;
+    //                 img.onload = function() {
+    //                     movedNode.style.backgroundImage = 'url(' + img.src + ')';
+    //                 };
+    //             };
+    //             reader.readAsDataURL(blob);
+    //         } else {
+    //             // Handle the error
+    //         }
+    //     }
+    // };
+
+    // xhr.responseType = 'blob';
+    //             xhr.send(JSON.stringify({
+    //               "id_a": 1,
+    //               "id_b":2,
+    //               "mix_value": 0.5 // Assuming a default mix value of 0.5
+    //             }));
+
+
+
+    function updateLinePosition(line, startNode, endNode, button) {
+      const startRect = startNode.getBoundingClientRect();
+      const endRect = endNode.getBoundingClientRect();
+      const startX = startRect.left + startRect.width / 2;
+      const startY = startRect.top + startRect.height / 2;
+      const endX = endRect.left + endRect.width / 2;
+      const endY = endRect.top + endRect.height / 2;
+      const length = Math.sqrt((endX - startX) ** 2 + (endY - startY) ** 2);
+      const angle =
+        (Math.atan2(endY - startY, endX - startX) * 180) / Math.PI;
+      line.style.width = `${length}px`;
+      line.style.left = `${startX}px`;
+      line.style.top = `${startY - 1}px`;
+      line.style.transform = `rotate(${angle}deg)`;
+
+      if (!button) {
+        button = document.createElement("img");
+        // set id to random 6 digit number
+        button.id = Math.floor(100000 + Math.random() * 900000);
+        button.className = "line-button";
         button.src =
-          "https://jpf.org.au/jpf/jpfmedia/Gallery_Nagai2-226x260.jpg"
-        // set height and width
+          "https://img.icons8.com/material-outlined/24/ffffff/plus--v1.png";
         button.onload = () => {
           // Once the image is loaded, center it between the nodes
-
-        button.style.height = "70px";
-        button.style.width = "70px";
-        // cover
-        button.style.backgroundSize = "cover";
           centerElementBetweenNodes(button, startNode, endNode);
         };
-      }
 
-      function printDistances(button, startNode, endNode) {
-        // Get the bounding rectangles of the nodes and button
-        const startRect = startNode.getBoundingClientRect();
-        const endRect = endNode.getBoundingClientRect();
-        const buttonRect = button.getBoundingClientRect();
+        button.addEventListener("click", function () {
+          handleButtonClick(button, startNode, endNode);
+        });
 
-        // Calculate the center points of the nodes and button
-        const startCenter = {
-          x: startRect.left + startRect.width / 2,
-          y: startRect.top + startRect.height / 2,
+        button.draggable = true;
+        button.ondragstart = (event) => {
+          var transparentImage = new Image();
+          transparentImage.src =
+            "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+          event.dataTransfer.setDragImage(transparentImage, 0, 0);
         };
-        const endCenter = {
-          x: endRect.left + endRect.width / 2,
-          y: endRect.top + endRect.height / 2,
+        button.ondrag = (event) => {
+          event.preventDefault();
+          button.pointerEvents = "none";
+          if (event.clientX === 0 && event.clientY === 0) {
+            return; // Ignore the drag event if the clientX and clientY are 0
+          }
+          const buttonRect = button.getBoundingClientRect();
+          const buttonCenterX = buttonRect.left + buttonRect.width / 2;
+          const buttonCenterY = buttonRect.top + buttonRect.height / 2;
+          const deltaX = event.clientX - buttonCenterX;
+          const deltaY = event.clientY - buttonCenterY;
+
+          // Calculate the unit vector for the line
+          const lineLength = Math.sqrt(
+            (endX - startX) ** 2 + (endY - startY) ** 2
+          );
+          const lineUnitVectorX = (endX - startX) / lineLength;
+          const lineUnitVectorY = (endY - startY) / lineLength;
+
+          // Project the movement (deltaX, deltaY) onto the line vector
+          const dotProduct =
+            deltaX * lineUnitVectorX + deltaY * lineUnitVectorY;
+          const moveX = dotProduct * lineUnitVectorX;
+          const moveY = dotProduct * lineUnitVectorY;
+          let newButtonX = button.offsetLeft + moveX;
+          let newButtonY = button.offsetTop + moveY;
+
+          // Constrain the button within the canvas boundaries
+          const canvasRect = canvas.getBoundingClientRect();
+          const buttonWidth = button.offsetWidth;
+          const buttonHeight = button.offsetHeight;
+          newButtonX = Math.min(
+            Math.max(newButtonX, canvasRect.left),
+            canvasRect.right - buttonWidth
+          );
+          newButtonY = Math.min(
+            Math.max(newButtonY, canvasRect.top),
+            canvasRect.bottom - buttonHeight
+          );
+
+          // Update button position
+          button.style.left = `${newButtonX - canvasRect.left}px`;
+          button.style.top = `${newButtonY - canvasRect.top}px`;
+          printDistances(button, startNode, endNode);
         };
-        const buttonCenter = {
-          x: buttonRect.left + buttonRect.width / 2,
-          y: buttonRect.top + buttonRect.height / 2,
-        };
 
-        // Calculate distances
-        const distanceBetweenNodes = calculateDistance(startCenter, endCenter);
-        const distanceFromStartNodeToButton = calculateDistance(
-          startCenter,
-          buttonCenter
-        );
+        canvas.appendChild(button);
+        lines.find((l) => l.line === line).button = button;
+      }
+      const buttonX = (startX + endX) / 2;
+      const buttonY = (startY + endY) / 2;
+      button.style.left = `${buttonX - button.offsetWidth / 2}px`;
+      button.style.top = `${buttonY - button.offsetHeight / 2}px`;
+    }
 
-        // Print out the distances
-        //   console.log(`Distance between nodes: ${distanceBetweenNodes}`);
-        //   console.log(`Distance from start node to button: ${distanceFromStartNodeToButton}`);
+    function handleButtonClick(button, startNode, endNode) {
+      // Change the button to an image
+      button.src =
+        "https://jpf.org.au/jpf/jpfmedia/Gallery_Nagai1.jpg"
 
-        // print out a json object that contains
-        // the id of the start node, the id of the end node, and the distance between them
-        // normalized by the distance between the nodes rounded
-        // to 2 decimal places
+      // print startnode image
+      img_1 = startNode.style.backgroundImage;
+      img_2 = button.src
+      num_images = 400
 
+      console.log({startNode: startNode.id, endNode: endNode.id, num_images: num_images})
 
-
-
-        console.log(
-          JSON.stringify({
-            startNodeId: startNode.id,
-            endNodeId: endNode.id,
-            distance: distanceFromStartNodeToButton/distanceBetweenNodes,
-          })
-        );
-
-
+      const options = {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'User-Agent': 'insomnia/8.4.5' },
+        body: JSON.stringify({id_a: startNode.id, id_b: endNode.id, num_images: num_images})
+      };
+      // if images is not empty, then do nothign
+      if (images.length != 0){
+        // Distribute images based on the position of the button
+        const totalDistance = calculateDistance(startNode.getBoundingClientRect(), endNode.getBoundingClientRect());
+        const distanceFromStart = calculateDistance(startNode.getBoundingClientRect(), button.getBoundingClientRect());
+        const imageIndex = Math.floor((distanceFromStart / totalDistance) * (images.length - 1));
+        console.log("setting image to ")
+        console.log(images[imageIndex])
+        endNode.style.backgroundImage = `url(data:image/jpeg;base64,${images[imageIndex]})`;
+                return;
       }
 
-      // Helper function to calculate the distance between two points
-      function calculateDistance(point1, point2) {
-        return Math.sqrt(
-          Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2)
-        );
-      }
+      fetch('http://127.0.0.1:5000/pregenerate', options)
+        .then(response => response.json())
+        .then(response => {
+          console.log(response)
+          images = response.images
+          // Distribute images based on the position of the button
+          const totalDistance = calculateDistance(startNode.getBoundingClientRect(), endNode.getBoundingClientRect());
+          const distanceFromStart = calculateDistance(startNode.getBoundingClientRect(), button.getBoundingClientRect());
+          const imageIndex = Math.floor((distanceFromStart / totalDistance) * (images.length - 1));
+          endNode.style.backgroundImage = `url(data:image/jpeg;base64,${images[imageIndex]})`;
+          // button.src = `url(data:image/jpeg;base64,${images[imageIndex]})`;
+        })
+        .catch(err => console.error(err));
 
-      function centerElementBetweenNodes(element, startNode, endNode) {
-        const startRect = startNode.getBoundingClientRect();
-        const endRect = endNode.getBoundingClientRect();
-        const startX = startRect.left + startRect.width / 2;
-        const startY = startRect.top + startRect.height / 2;
-        const endX = endRect.left + endRect.width / 2;
-        const endY = endRect.top + endRect.height / 2;
 
-        const centerX = (startX + endX) / 2 - element.offsetWidth / 2;
-        const centerY = (startY + endY) / 2 - element.offsetHeight / 2;
 
-        element.style.left = `${centerX}px`;
-        element.style.top = `${centerY}px`;
-      }
-    </script>
-  </body>
+      // set height and width
+      button.onload = () => {
+        // Once the image is loaded, center it between the nodes
+
+        button.style.height = "150px";
+        button.style.width = "150px";
+        // cover
+        button.style.backgroundSize = "cover";
+        centerElementBetweenNodes(button, startNode, endNode);
+      };
+    }
+
+    function printDistances(button, startNode, endNode) {
+      // Get the bounding rectangles of the nodes and button
+      const startRect = startNode.getBoundingClientRect();
+      const endRect = endNode.getBoundingClientRect();
+      const buttonRect = button.getBoundingClientRect();
+
+      // Calculate the center points of the nodes and button
+      const startCenter = {
+        x: startRect.left + startRect.width / 2,
+        y: startRect.top + startRect.height / 2,
+      };
+      const endCenter = {
+        x: endRect.left + endRect.width / 2,
+        y: endRect.top + endRect.height / 2,
+      };
+      const buttonCenter = {
+        x: buttonRect.left + buttonRect.width / 2,
+        y: buttonRect.top + buttonRect.height / 2,
+      };
+
+      // Calculate distances
+      const distanceBetweenNodes = calculateDistance(startCenter, endCenter);
+      const distanceFromStartNodeToButton = calculateDistance(
+        startCenter,
+        buttonCenter
+      );
+
+      // Print out the distances
+      //   console.log(`Distance between nodes: ${distanceBetweenNodes}`);
+      //   console.log(`Distance from start node to button: ${distanceFromStartNodeToButton}`);
+
+      // print out a json object that contains
+      // the id of the start node, the id of the end node, and the distance between them
+      // normalized by the distance between the nodes rounded
+      // to 2 decimal places
+
+
+
+
+      console.log(
+        JSON.stringify({
+          startNodeId: startNode.id,
+          endNodeId: endNode.id,
+          distance: distanceFromStartNodeToButton / distanceBetweenNodes,
+        })
+      );
+
+      // set the endpoint image to the closest image in the array
+      const imageIndex = Math.floor((distanceFromStartNodeToButton / distanceBetweenNodes) * (images.length - 1));
+      endNode.style.backgroundImage = `url(data:image/jpeg;base64,${images[imageIndex]})`;
+
+
+    }
+
+    // Helper function to calculate the distance between two points
+    function calculateDistance(point1, point2) {
+      return Math.sqrt(
+        Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2)
+      );
+    }
+
+    function centerElementBetweenNodes(element, startNode, endNode) {
+      const startRect = startNode.getBoundingClientRect();
+      const endRect = endNode.getBoundingClientRect();
+      const startX = startRect.left + startRect.width / 2;
+      const startY = startRect.top + startRect.height / 2;
+      const endX = endRect.left + endRect.width / 2;
+      const endY = endRect.top + endRect.height / 2;
+
+      const centerX = (startX + endX) / 2 - element.offsetWidth / 2;
+      const centerY = (startY + endY) / 2 - element.offsetHeight / 2;
+
+      element.style.left = `${centerX}px`;
+      element.style.top = `${centerY}px`;
+    }
+  </script>
+</body>
+
 </html>

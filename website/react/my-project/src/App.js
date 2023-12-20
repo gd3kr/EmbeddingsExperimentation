@@ -3,21 +3,20 @@ import "./App.css";
 import { useState, useRef, useCallback } from "react";
 
 // import image1 image2 and image3
-import image1 from './image1.jpeg';
-import image2 from './image2.jpeg';
-import image3 from './image3.jpeg';
-
-
+import image1 from "./image1.jpeg";
+import image2 from "./image2.jpeg";
+import image3 from "./image3.jpeg";
 
 function App() {
   const sliderRef = useRef(null);
   const [gradientPositions, setGradientPositions] = useState([25, 50, 75]); // Default positions for the gradient stops
-  const [color1, setColor1] = useState('#FF0000');
-  const [color2, setColor2] = useState('#00FF00');
-  const [color3, setColor3] = useState('#0000FF');
+  const [color1, setColor1] = useState("#FF0000");
+  const [color2, setColor2] = useState("#00FF00");
+  const [color3, setColor3] = useState("#0000FF");
+  const [displayedImage, setDisplayedImage] = useState(image1);
 
-   // Function to update the position of a gradient stop
-   const updateGradientPosition = (index, position) => {
+  // Function to update the position of a gradient stop
+  const updateGradientPosition = (index, position) => {
     setGradientPositions((prevPositions) => {
       const newPositions = [...prevPositions];
       newPositions[index] = position;
@@ -26,8 +25,8 @@ function App() {
   };
 
   const extractMainColor = (image) => {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
     canvas.width = 1;
     canvas.height = 1;
 
@@ -57,12 +56,10 @@ function App() {
     img3.onload = () => {
       setColor3(extractMainColor(img3));
     };
-
   };
 
   // Call the function to extract colors
   blurAndExtractColors();
-
 
   // Generate a CSS gradient string based on the positions
   const gradient = `linear-gradient(to right, 
@@ -77,33 +74,52 @@ function App() {
   // #FF0000 0%,
   // #00FF00 33%,
   // #FF00FF 100%)`;
-  
 
   return (
     <div className="h-screen flex flex-col justify-center items-center bg-[#282828] space-y-8">
       {/* Black rectangle placeholder */}
-      <div className="bg-[#1B1B1B] w-5/6 md:w-1/2 h-[400px] rounded-xl bg-[#1B1B1B] flex flex-row justify-center items-end space-x-8 p-12">
+      <div className="bg-[#1B1B1B] w-5/6  h-full m-[100px] p-12  rounded-xl  flex flex-col justify-around items-center gap-[100px]">
+        {/* create an image in the center which shows displayed Image */}
+        <img
+          src={displayedImage}
+          className="h-[250px] w-[250px] rounded-xl shadow-xl"
+          alt="displayed image"
+        />
 
-      {/* <SliderThumb sliderRef={sliderRef}/> */}
+        {/* create a slider to change the image */}
 
-      <div className="relative w-full h-8" ref={sliderRef}>
-      <div className="absolute inset-0 m-auto w-full h-12 rounded-lg border-[6px] border-[#444444]" 
-      style={{background: gradient}}></div>
-        <SliderThumb sliderRef={sliderRef} className=" hover:scale-x-150 active:scale-x-150 -mt-[2px]"/>
-        {gradientPositions.map((position, index) => (
+        {/* <SliderThumb sliderRef={sliderRef}/> */}
 
-        <SliderImageThumb  key={index} index={index}  sliderRef={sliderRef} className="-mt-[60px] h-[45px] w-[45px]" updateColorPosition={updateGradientPosition}/>
-        ))}
-
-
+        <div className="relative w-full h-8" ref={sliderRef}>
+          <div
+            className="absolute inset-0 m-auto w-full h-12 rounded-lg border-[6px] border-[#444444]"
+            style={{ background: gradient }}
+          ></div>
+          <SliderThumb
+            sliderRef={sliderRef}
+            className=" hover:scale-x-150 active:scale-x-150 -mt-[2px]"
+          />
+          {gradientPositions.map((position, index) => (
+            <SliderImageThumb
+              key={index}
+              index={index}
+              sliderRef={sliderRef}
+              className="-mt-[60px] h-[45px] w-[45px]"
+              updateColorPosition={updateGradientPosition}
+            />
+          ))}
         </div>
-
       </div>
 
-        {/* button that when pressed prints the location of the gradient */}
-        <button 
+      {/* button that when pressed prints the location of the gradient */}
+      <button
         className="bg-[#1B1B1B] text-white rounded-lg p-2"
-        onClick={() => console.log(gradientPositions.map(pos => (pos / 100).toFixed(3)))}>Print normalized gradient positions</button>
+        onClick={() =>
+          console.log(gradientPositions.map((pos) => (pos / 100).toFixed(3)))
+        }
+      >
+        Print normalized gradient positions
+      </button>
 
       {/* Progress bar/slider placeholder */}
 
@@ -113,13 +129,17 @@ function App() {
   );
 }
 
-const SliderImageThumb = ({index, sliderRef, className, updateColorPosition}) => {
-  const [position, setPosition] = useState((index+1)*30);
-
+const SliderImageThumb = ({
+  index,
+  sliderRef,
+  className,
+  updateColorPosition,
+}) => {
+  const [position, setPosition] = useState((index + 1) * 30);
 
   const startDrag = (e) => {
     const slider = sliderRef.current;
-    console.log(slider)
+    console.log(slider);
 
     const updatePosition = (e) => {
       if (!slider) return; // Ensure that slider is not null or undefined
@@ -132,7 +152,6 @@ const SliderImageThumb = ({index, sliderRef, className, updateColorPosition}) =>
         const positionPercent = (newPosition / endPosition) * 100;
         setPosition(positionPercent);
         updateColorPosition(index, positionPercent);
-
       }
     };
 
@@ -143,27 +162,31 @@ const SliderImageThumb = ({index, sliderRef, className, updateColorPosition}) =>
     });
   };
 
-
   return (
     <div>
-        <div
-          className={`w-2 h-[35px] bg-white rounded-md absolute cursor-pointer transition-transform active:translate-y-[-10px] active:scale-150 hover:scale-105 ${className}`}
-          style={{ left: `${position}%`, backgroundImage: `url(${index === 0 ? image1 : index === 1 ? image2 : image3})`, backgroundSize: 'cover' }}
-          onMouseDown={startDrag}
-        >
-          {/* Draggable thumb */}
-        </div>
+      <div
+        className={`w-2 h-[35px] bg-white rounded-md absolute cursor-pointer transition-transform active:translate-y-[-10px] active:scale-150 hover:scale-105 ${className}`}
+        style={{
+          left: `${position}%`,
+          backgroundImage: `url(${
+            index === 0 ? image1 : index === 1 ? image2 : image3
+          })`,
+          backgroundSize: "cover",
+        }}
+        onMouseDown={startDrag}
+      >
+        {/* Draggable thumb */}
       </div>
+    </div>
   );
 };
 
-const SliderThumb = ({sliderRef, className}) => {
+const SliderThumb = ({ sliderRef, className }) => {
   const [position, setPosition] = useState(0);
-
 
   const startDrag = (e) => {
     const slider = sliderRef.current;
-    console.log(slider)
+    console.log(slider);
 
     const updatePosition = (e) => {
       if (!slider) return; // Ensure that slider is not null or undefined
@@ -186,14 +209,14 @@ const SliderThumb = ({sliderRef, className}) => {
 
   return (
     <div>
-        <div
-          className={`w-4 h-[35px] bg-white rounded-md absolute cursor-pointer transition-transform ${className} `}
-          style={{ left: `${position}%` }}
-          onMouseDown={startDrag}
-        >
-          {/* Draggable thumb */}
-        </div>
+      <div
+        className={`w-4 h-[35px] bg-white rounded-md absolute cursor-pointer transition-transform ${className} `}
+        style={{ left: `${position}%` }}
+        onMouseDown={startDrag}
+      >
+        {/* Draggable thumb */}
       </div>
+    </div>
   );
 };
 

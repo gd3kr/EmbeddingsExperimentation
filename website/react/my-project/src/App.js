@@ -14,6 +14,37 @@ function App() {
   const [color2, setColor2] = useState("#00FF00");
   const [color3, setColor3] = useState("#0000FF");
   const [displayedImage, setDisplayedImage] = useState(image1);
+  const [images, setImages] = useState([]); // Array of images to be displayed
+
+  const convertImageToBase64 = (imgPath, callback) => {
+    fetch(imgPath)
+      .then(response => response.blob())
+      .then(blob => {
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        reader.onloadend = () => {
+          const base64data = reader.result;
+          callback(base64data);
+        };
+      })
+      .catch(error => console.error('Error:', error));
+  };
+
+  const storeLatents = (img, id) => {
+    convertImageToBase64(img, (base64) => {
+    fetch("http://127.0.0.1:5000/store_latent", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ image_b64: base64, id: id })
+    })
+    .then(response => response.json())
+    .then(data => console.log(data))
+    .catch(error => console.error('Error:', error));
+
+    });
+  };
 
   // Function to update the position of a gradient stop
   const updateGradientPosition = (index, position) => {
@@ -76,12 +107,16 @@ function App() {
   // #FF00FF 100%)`;
 
   return (
-    <div className="h-screen flex flex-col justify-center items-center bg-[#282828] space-y-8">
+    <div className="h-screen flex flex-col justify-center items-center bg-[#282828]">
       {/* Black rectangle placeholder */}
-      <div className="bg-[#1B1B1B] w-5/6  h-full m-[100px] p-12  rounded-xl  flex flex-col justify-around items-center gap-[100px]">
+      <div className="bg-[#1B1B1B] w-5/6 m-[10px] p-12  rounded-xl  flex flex-col justify-around items-center gap-[100px]">
+        <h1 className="text-4xl text-white font-bold">
+          {/* Latent Surfing */}
+        </h1>
+        
         {/* create an image in the center which shows displayed Image */}
         <img
-          src={displayedImage}
+          src={`data:image/png;base64,${displayedImage}`}
           className="h-[250px] w-[250px] rounded-xl shadow-xl"
           alt="displayed image"
         />
@@ -98,6 +133,9 @@ function App() {
           <SliderThumb
             sliderRef={sliderRef}
             className=" hover:scale-x-150 active:scale-x-150 -mt-[2px]"
+            images={images}
+            setImages={setImages}
+            setDisplayedImage={setDisplayedImage}
           />
           {gradientPositions.map((position, index) => (
             <SliderImageThumb
@@ -114,11 +152,40 @@ function App() {
       {/* button that when pressed prints the location of the gradient */}
       <button
         className="bg-[#1B1B1B] text-white rounded-lg p-2"
-        onClick={() =>
-          console.log(gradientPositions.map((pos) => (pos / 100).toFixed(3)))
+        onClick={() =>{
+          // const normalizedPositions = gradientPositions.map((pos) => (pos / 100).toFixed(3));
+          // console.log(normalizedPositions);
+          storeLatents(image1, 1);
+          storeLatents(image2, 2);
+          storeLatents(image3, 3);
+        }
         }
       >
-        Print normalized gradient positions
+        Compute Latents
+      </button>
+      <button
+        className="bg-[#1B1B1B] text-white rounded-lg p-2"
+        onClick={() =>{
+          const options = {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'User-Agent': 'insomnia/8.4.5' },
+            body: JSON.stringify({id_a: 1, id_b: 2, id_c: 3, num_images: 100})
+          };
+
+          fetch('http://127.0.0.1:5000/pregenerate', options)
+        .then(response => response.json())
+        .then(response => {
+          console.log(response)
+          setImages(response.images)
+          // images = response.images
+          // Distribute images based on the position of the button
+
+        })
+        .catch(err => console.error(err));
+        }
+        }
+      >
+        Generate
       </button>
 
       {/* Progress bar/slider placeholder */}
@@ -148,7 +215,7 @@ const SliderImageThumb = ({
       const newPosition = e.clientX - rect.left;
       const endPosition = rect.width;
 
-      if (newPosition >= 0 && newPosition <= endPosition) {
+      if (newPosition >= 0 && newPosition <= endPosition-50) {
         const positionPercent = (newPosition / endPosition) * 100;
         setPosition(positionPercent);
         updateColorPosition(index, positionPercent);
@@ -181,7 +248,7 @@ const SliderImageThumb = ({
   );
 };
 
-const SliderThumb = ({ sliderRef, className }) => {
+const SliderThumb = ({ sliderRef, className, images, setImages, setDisplayedImage}) => {
   const [position, setPosition] = useState(0);
 
   const startDrag = (e) => {
@@ -196,7 +263,10 @@ const SliderThumb = ({ sliderRef, className }) => {
       const endPosition = rect.width;
 
       if (newPosition >= 0 && newPosition <= endPosition) {
-        setPosition((newPosition / endPosition) * 100);
+        const positionPercent = (newPosition / endPosition) * 100;
+        setPosition(positionPercent);
+        const imageIndex = Math.round(positionPercent * (images.length - 1) / 100);
+        setDisplayedImage(images[imageIndex]);
       }
     };
 

@@ -31,7 +31,7 @@ function App() {
 
 
       <div className="relative w-full h-8" ref={sliderRef}>
-      <div className="absolute inset-0 m-auto w-full h-12 bg-gradient-to-r from-green-400 via-blue-500 to-purple-600 rounded-lg border-2 border-gray-700" 
+      <div className="absolute inset-0 m-auto w-full h-12 bg-gradient-to-r from-green-400 via-blue-500 to-purple-600 rounded-lg border-[6px] border-gray-700" 
       style={{backgroundImage: gradient}}></div>
         <SliderThumb sliderRef={sliderRef} className=" hover:scale-x-150 active:scale-x-150 -mt-[2px]"/>
         {gradientPositions.map((position, index) => (
@@ -85,7 +85,7 @@ const SliderImageThumb = ({index, sliderRef, className, updateColorPosition}) =>
   return (
     <div>
         <div
-          className={`w-2 h-[35px] bg-white rounded-md absolute cursor-pointer transition-transform ${className}`}
+          className={`w-2 h-[35px] bg-white rounded-md absolute cursor-pointer transition-transform active:translate-y-[-10px] active:scale-150 hover:scale-105 ${className}`}
           style={{ left: `${position}%` }}
           onMouseDown={startDrag}
         >
@@ -125,7 +125,7 @@ const SliderThumb = ({sliderRef, className}) => {
   return (
     <div>
         <div
-          className={`w-2 h-[35px] bg-white rounded-md absolute cursor-pointer transition-transform ${className}`}
+          className={`w-4 h-[35px] bg-white rounded-md absolute cursor-pointer transition-transform ${className} `}
           style={{ left: `${position}%` }}
           onMouseDown={startDrag}
         >

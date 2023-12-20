@@ -1,6 +1,7 @@
 import React from "react";
 import "./App.css";
 import { useState, useRef, useCallback } from "react";
+import axios from "axios";
 
 // import image1 image2 and image3
 import image1 from "./image1.jpeg";
@@ -32,16 +33,12 @@ function App() {
 
   const storeLatents = (img, id) => {
     convertImageToBase64(img, (base64) => {
-    fetch("http://127.0.0.1:5000/store_latent", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ image_b64: base64, id: id })
-    })
-    .then(response => response.json())
-    .then(data => console.log(data))
-    .catch(error => console.error('Error:', error));
+    //  remove the header from the base64 string
+    base64 = base64.split(",")[1];
+    
+    axios.post("http://127.0.0.1:5000/store_latent", { image_b64: base64, id: id })
+      .then(response => console.log(response.data))
+      .catch(error => console.error('Error:', error));
 
     });
   };
@@ -169,8 +166,18 @@ function App() {
           const options = {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'User-Agent': 'insomnia/8.4.5' },
-            body: JSON.stringify({id_a: 1, id_b: 2, id_c: 3, num_images: 100})
+            body: JSON.stringify({
+                id_a: 1,
+                id_b: 2,
+                id_c: 3,
+              num_images: 100,
+              positions: [0.1, 0.2, 0.8]
+              // positions: gradientPositions.map((pos) => (pos / 100).toFixed(3))
+            })
           };
+
+          console.log(options)
+          // return;
 
           fetch('http://127.0.0.1:5000/pregenerate', options)
         .then(response => response.json())

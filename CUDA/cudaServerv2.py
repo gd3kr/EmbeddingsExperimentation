@@ -34,7 +34,7 @@ torch._dynamo.config.suppress_errors=True
 
 app = Flask(__name__)
 # CORS(app)
-CORS(app, resources={r"/*": {"origins": "http://localhost:5500"}})
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 
 adapter_id = "latent-consistency/lcm-lora-sdv1-5"
@@ -202,23 +202,43 @@ for _ in range(10):
 
 @app.route('/store_latent', methods=['POST'])
 def store_latent():
+    print("Request received")
     data = request.get_json()
-    image_url = data['image_url']
-    image_id = data['id']
+    image_url = data.get('image_url', None)
+    image_id = data.get('id', None)
+    image_b64 = data.get('image_b64', None)
+
+    print("Storing latent with id: ", image_id)
+    print("image_url: ", image_url)
+    # print("image_b64: ", image_b64[:10])
+    print("image_id: ", image_id)
+
+
+
     
-    if (not image_url or not image_id):
-        return jsonify({'error': "bruh"}), 500
+    if (not (image_url or image_b64) or not image_id):
+        return jsonify({'error': 'image_url, image_b64, and id are required'}), 400
 
     
     try:
-        response = requests.get(image_url)
-        response.raise_for_status()
-        image = Image.open(BytesIO(response.content)).convert('RGB')
+        if image_b64:
+            try:
+                image_data = base64.b64decode(image_b64)
+            
+                image = Image.open(BytesIO(image_data)).convert('RGB')
+            except IOError as e:
+                return jsonify({'error': 'Cannot identify image file'}), 400
+        else:
+            response = requests.get(image_url)
+            response.raise_for_status()
+            image = Image.open(BytesIO(response.content)).convert('RGB')
     except requests.RequestException as e:
         return jsonify({'error': str(e)}), 500
 
     latent = get_latents(image)
     latents_store[image_id] = latent
+
+    print("Stored latent with id: ", image_id)
 
     return jsonify({'message': 'latent stored', 'id': image_id}), 200
 
@@ -280,6 +300,9 @@ def pregenerate():
     data = request.get_json()
     id_a = data['id_a']
     id_b = data['id_b']
+    id_c = data['id_c']
+    positions = data['positions'] # array of length 3, each element is a number between 0 and 1
+
 
     num_images = data['num_images'] # the number of images to generate tweening    
 
@@ -288,12 +311,18 @@ def pregenerate():
     # mix between 0 and 1 for n images
     
     step_values = np.linspace(0, 1, num_images)
+    images_key = id_a + id_b + id_c
+    if images_key not in images:
+        images[images_key] = []
     for step in step_values:
-        interpolated_latent = slerp(latents_store[id_a], latents_store[id_b], step)
+        if step <= positions[1]:
+            interpolated_latent = slerp(latents_store[id_a], latents_store[id_b], step / positions[1])
+        elif step <= positions[2]:
+            interpolated_latent = slerp(latents_store[id_b], latents_store[id_c], (step - positions[1]) / (positions[2] - positions[1]))
+        else:
+            interpolated_latent = latents_store[id_c]
         image = generate_image(interpolated_latent).images[0]
-        images_key = id_a + id_b
-        if images_key not in images:
-            images[images_key] = []
+
 
         buffered = BytesIO()
         image.save(buffered, format="JPEG")

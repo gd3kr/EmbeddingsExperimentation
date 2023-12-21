@@ -152,7 +152,7 @@ def process_latents(latents, operation): # apply mean, average, etc
 
 def generate_image(latents): # takes in latents as input and generates an image with SD
   # ATTENTION: FOR SOME REASON, SETTING GUIDANCE SCALE TO 1 ABSOLUTELY FUCKS UP THE WHOLE PIPELINE, TREASURE YOUR BRAIN CELLS
-  images = pipe(latents, num_inference_steps=4,  guidance_scale=1.2, num_images_per_prompt=1, generator=generator, height=400, width=400)
+  images = pipe(latents, num_inference_steps=4,  guidance_scale=1.2, num_images_per_prompt=1, generator=generator, height=512, width=512)
   return images
 
 def mix_images(image_a, image_b, mix_value):
@@ -315,12 +315,24 @@ def pregenerate():
     if images_key not in images:
         images[images_key] = []
     for step in step_values:
-        if step <= positions[1]:
-            interpolated_latent = slerp(latents_store[id_a], latents_store[id_b], step / positions[1])
+        # interpolated_latent = mix_images(latents_store[id_b], latents_store[id_c], step)
+
+        # if step is between positions 0 and 1
+        if step <= positions[0]:
+            interpolated_latent = latents_store[id_a]
+        elif step <= positions[1]:
+            interpolated_latent = mix_images(latents_store[id_a], latents_store[id_b], (step - positions[0]) / (positions[1] - positions[0]))
         elif step <= positions[2]:
-            interpolated_latent = slerp(latents_store[id_b], latents_store[id_c], (step - positions[1]) / (positions[2] - positions[1]))
+            interpolated_latent = mix_images(latents_store[id_b], latents_store[id_c], (step - positions[1]) / (positions[2] - positions[1]))
         else:
             interpolated_latent = latents_store[id_c]
+
+        # if step <= positions[1]:
+        #     interpolated_latent = mix_images(latents_store[id_a], latents_store[id_b], step / positions[1])
+        # elif step <= positions[2]:
+        #     interpolated_latent = mix_images(latents_store[id_b], latents_store[id_c], (step - positions[1]) / (positions[2] - positions[1]))
+        # else:
+        #     interpolated_latent = latents_store[id_c]
         image = generate_image(interpolated_latent).images[0]
 
 
@@ -332,7 +344,7 @@ def pregenerate():
 
     end_time = time.time()
 
-    print(f"Processing time: {end_time - start_time} seconds")
+    print(f"Processing time: {end_time - start_time} `seconds")
     # Since Image objects are not JSON serializable, we need to convert them to a serializable format
     # Convert images to a list of base64 encoded strings
     

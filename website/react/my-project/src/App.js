@@ -4,11 +4,12 @@ import { useState, useRef, useCallback } from "react";
 import axios from "axios";
 
 // import image1 image2 and image3
-import image1 from "./image1.jpeg";
+import image1 from "./image5.jpeg";
 import image2 from "./image2.jpeg";
 import image3 from "./image3.jpeg";
 
 function App() {
+
   const sliderRef = useRef(null);
   const [gradientPositions, setGradientPositions] = useState([25, 50, 75]); // Default positions for the gradient stops
   const [color1, setColor1] = useState("#FF0000");
@@ -149,12 +150,12 @@ function App() {
       {/* button that when pressed prints the location of the gradient */}
       <button
         className="bg-[#1B1B1B] text-white rounded-lg p-2"
-        onClick={() =>{
+        onClick={async () =>{
           // const normalizedPositions = gradientPositions.map((pos) => (pos / 100).toFixed(3));
           // console.log(normalizedPositions);
-          storeLatents(image1, 1);
-          storeLatents(image2, 2);
-          storeLatents(image3, 3);
+          await storeLatents(image1, 1);
+          await storeLatents(image2, 2);
+          await storeLatents(image3, 3);
         }
         }
       >
@@ -162,7 +163,11 @@ function App() {
       </button>
       <button
         className="bg-[#1B1B1B] text-white rounded-lg p-2"
-        onClick={() =>{
+        onClick={() =>{ 
+
+          // delete all images
+          setImages([]);
+
           const options = {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'User-Agent': 'insomnia/8.4.5' },
@@ -171,8 +176,8 @@ function App() {
                 id_b: 2,
                 id_c: 3,
               num_images: 100,
-              positions: [0.1, 0.2, 0.8]
-              // positions: gradientPositions.map((pos) => (pos / 100).toFixed(3))
+              // positions: [0.1, 0.2, 0.8]
+              positions: gradientPositions.map((pos) => parseFloat((pos / 100).toFixed(1)))
             })
           };
 

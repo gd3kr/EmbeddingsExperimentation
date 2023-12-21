@@ -3,7 +3,9 @@
 import io
 import requests
 import time
+import base64
 
+import numpy as np
 
 from diffusers import DiffusionPipeline
 from diffusers.loaders import IPAdapterMixin
@@ -37,6 +39,9 @@ from flask import Flask, request, jsonify, Response
 from PIL import Image
 # BytesIO
 from io import BytesIO
+
+from flask_cors import CORS, cross_origin
+
 
 from sfast.compilers.stable_diffusion_pipeline_compiler import (
     compile, CompilationConfig)
@@ -176,6 +181,7 @@ class CustomPipeline(StableDiffusionPipeline):
         callback = kwargs.pop("callback", None)
         callback_steps = kwargs.pop("callback_steps", None)
 
+
         # 0. Default height and width to unet
         height = height or self.unet.config.sample_size * self.vae_scale_factor
         width = width or self.unet.config.sample_size * self.vae_scale_factor
@@ -213,6 +219,9 @@ class CustomPipeline(StableDiffusionPipeline):
             self.cross_attention_kwargs.get("scale", None) if self.cross_attention_kwargs is not None else None
         )
 
+        print("classifier free guidance is")
+        print(self.do_classifier_free_guidance)
+
         prompt_embeds, negative_prompt_embeds = self.encode_prompt(
             prompt,
             device,
@@ -230,7 +239,9 @@ class CustomPipeline(StableDiffusionPipeline):
         # Here we concatenate the unconditional and text embeddings into a single batch
         # to avoid doing two forward passes
         if self.do_classifier_free_guidance:
+            print("embeddings prompt with prompt", prompt)
             prompt_embeds = torch.cat([negative_prompt_embeds, prompt_embeds])
+
 
         if ip_adapter_image is not None:
             output_hidden_state = False if isinstance(self.unet.encoder_hid_proj, ImageProjection) else True
@@ -364,20 +375,20 @@ class CustomPipeline(StableDiffusionPipeline):
     
 
 def load_model():
-    model_id =  "sd-dreambooth-library/herge-style"
-    # model_id = "runwayml/stable-diffusion-v1-5"
+    # model_id =  "sd-dreambooth-library/herge-style"
+    model_id = "runwayml/stable-diffusion-v1-5"
     pipe = CustomPipeline.from_pretrained(model_id, torch_dtype=torch.float16).to("cuda")
     pipe.safety_checker = None
 
-    pipe.load_ip_adapter("h94/IP-Adapter", subfolder="models", weight_name="ip-adapter_sd15.bin")
+    pipe.load_ip_adapter("h94/IP-Adapter", subfolder="models", weight_name="ip-adapter_sd15.bin", torch_dtype=torch.float16)
 
     pipe.scheduler = LCMScheduler.from_config(pipe.scheduler.config)
 
-    pipe.load_lora_weights("latent-consistency/lcm-lora-sdv1-5")
+    pipe.load_lora_weights("latent-consistency/lcm-lora-sdv1-5", torch_dtype=torch.float16)
     
     # pipe.unet.set_attn_processor(AttnProcessor2_0())
 
-    pipe.enable_xformers_memory_efficient_attention()
+    # pipe.enable_xformers_memory_efficient_attention()
     # pipe.enable_model_cpu_offload()
     # pipe.disable_xformers_memory_efficient_attention()
     return pipe
@@ -417,12 +428,14 @@ def generate_image(latents): # takes in latents as input and generates an image 
     
   start = time.time()
   images = pipe(
-        prompt="",
+        prompt="anime ghibli",
         input_image_embeds=latents,
         ip_adapter_image=test_image,
-        num_inference_steps=4,
-        guidance_scale=1.2,
-        # generator=generator,
+        num_inference_steps=5,
+        guidance_scale=1.2, #change to 1.9
+        generator=generator,
+        do_classifier_free_guidance=True
+
         # height=512,
         # width=512,
     )
@@ -435,9 +448,11 @@ def mix_images(image_a, image_b, mix_value):
 
 
 app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "*"}})
+
 latents_store = {}
 device = "cuda"
-generator = torch.Generator(device=device).manual_seed(0)
+generator = torch.Generator(device=device).manual_seed(42)
 
 pipe = load_model().to("cuda")
 
@@ -445,7 +460,7 @@ config = CompilationConfig.Default()
 # xformers and Triton are suggested for achieving best performance.
 try:
     import xformers
-    config.enable_xformers = True
+    config.enable_xformers = False
     print("USING XFORMERS")
 except ImportError:
     print('xformers not installed, skip')
@@ -494,23 +509,36 @@ def ping():
 
 @app.route('/store_latent', methods=['POST'])
 def store_latent():
-
+    print("Request received")
     data = request.get_json()
-    image_url = data['image_url']
-    image_id = data['id']
-    
-    if (not image_url or not image_id):
-        return jsonify({'error': "bruh"}), 500
+    image_url = data.get('image_url', None)
+    image_id = data.get('id', None)
+    image_b64 = data.get('image_b64', None)
 
+    print("Storing latent with id: ", image_id)
+    print("image_url: ", image_url)
+    # print("image_b64: ", image_b64[:10])
+    print("image_id: ", image_id)
+
+    if (not (image_url or image_b64) or not image_id):
+        return jsonify({'error': 'image_url, image_b64, and id are required'}), 400
 
     try:
-        response = requests.get(image_url)
-        response.raise_for_status()
-        image = Image.open(BytesIO(response.content)).convert('RGB')
+        if image_b64:
+            try:
+                image_data = base64.b64decode(image_b64)
+            
+                image = Image.open(BytesIO(image_data)).convert('RGB')
+            except IOError as e:
+                return jsonify({'error': 'Cannot identify image file'}), 400
+        else:
+            response = requests.get(image_url)
+            response.raise_for_status()
+            image = Image.open(BytesIO(response.content)).convert('RGB')
     except requests.RequestException as e:
         return jsonify({'error': str(e)}), 500
 
-    image = image.resize((512, 512))
+    # image = image.resize((512, 512))
     
     image_embeds, negative_image_embeds = CustomPipeline.encode_image(
                 pipe, image, device, 1, output_hidden_states=False
@@ -565,6 +593,66 @@ def generate_avg_time():
     avg_time = (end_time - start_time) / 5
     return jsonify({'average_time': avg_time}), 200
 
+images = {}
+
+
+@app.route("/pregenerate", methods=['POST'])
+def pregenerate():
+    start_time = time.time()
+    data = request.get_json()
+    id_a = data['id_a']
+    id_b = data['id_b']
+    id_c = data['id_c']
+    positions = data['positions'] # array of length 3, each element is a number between 0 and 1
+    images = {}
+
+
+    num_images = data['num_images'] # the number of images to generate tweening    
+
+    # generates and saves images
+
+    # mix between 0 and 1 for n images
+    
+    step_values = np.linspace(0, 1, num_images)
+    images_key = id_a + id_b + id_c
+    if images_key not in images:
+        images[images_key] = []
+    for step in step_values:
+        # interpolated_latent = mix_images(latents_store[id_b], latents_store[id_c], step)
+
+        # if step is between positions 0 and 1
+        if step <= positions[0]:
+            interpolated_latent = latents_store[id_a]
+        elif step <= positions[1]:
+            interpolated_latent = mix_images(latents_store[id_a], latents_store[id_b], (step - positions[0]) / (positions[1] - positions[0]))
+        elif step <= positions[2]:
+            interpolated_latent = mix_images(latents_store[id_b], latents_store[id_c], (step - positions[1]) / (positions[2] - positions[1]))
+        else:
+            interpolated_latent = latents_store[id_c]
+
+        # if step <= positions[1]:
+        #     interpolated_latent = mix_images(latents_store[id_a], latents_store[id_b], step / positions[1])
+        # elif step <= positions[2]:
+        #     interpolated_latent = mix_images(latents_store[id_b], latents_store[id_c], (step - positions[1]) / (positions[2] - positions[1]))
+        # else:
+        #     interpolated_latent = latents_store[id_c]
+        image = generate_image(interpolated_latent).images[0]
+
+
+        buffered = BytesIO()
+        image.save(buffered, format="JPEG")
+        img_str = base64.b64encode(buffered.getvalue())
+        img_base64 = img_str.decode('utf-8')
+        images[images_key].append(img_base64)
+
+    end_time = time.time()
+
+    print(f"Processing time: {end_time - start_time} `seconds")
+    # Since Image objects are not JSON serializable, we need to convert them to a serializable format
+    # Convert images to a list of base64 encoded strings
+    
+
+    return jsonify({'images': images[images_key]}), 200
 
 @app.route('/mix', methods=['POST'])
 def mix():

@@ -99,7 +99,11 @@ class CustomPipeline(DiffusionPipeline, LoraLoaderMixin):
             )
 
         if latents is None:
+            generator.manual_seed(0)  # Force the generator seed for reproducibility
+            print("sampling random latents")
             latents = randn_tensor(shape, generator=generator, device=device, dtype=dtype)
+            print("seed is: ", generator.initial_seed())
+            print("shape of latents: " + str(shape))
         else:
             latents = latents.to(device)
 

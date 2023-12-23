@@ -28,8 +28,18 @@ base_model = "lambdalabs/sd-image-variations-diffusers"
 
 device = torch.device("mps")
 generator = torch.Generator(device).manual_seed(0)
-image_encoder = CLIPVisionModelWithProjection.from_pretrained(base_model, subfolder="image_encoder").to(device=device)
-feature_extractor = CLIPImageProcessor.from_pretrained(base_model, subfolder="feature_extractor")
+
+initial_seed = generator.initial_seed()
+def reset_generator_seed():
+    generator.manual_seed(initial_seed)
+
+app.before_request(reset_generator_seed)
+
+
+
+
+image_encoder = CLIPVisionModelWithProjection.from_pretrained(base_model, subfolder="image_encoder", torch_dtype=torch.float16).to(device=device)
+feature_extractor = CLIPImageProcessor.from_pretrained(base_model, subfolder="feature_extractor", torch_dtype=torch.float16)
 do_classifier_free_guidance = True
 dtype = next(image_encoder.parameters()).dtype
 
@@ -65,6 +75,7 @@ def load_model():
         base_model,
         # "lambdalabs/sd-image-variations-diffusers",
         revision="v2.0",
+        torch_dtype=dtype,
         # try usign bits and bytes for faster inference using 8 bit precision
     )
     pipe.scheduler = LCMScheduler.from_config(pipe.scheduler.config)
@@ -124,6 +135,7 @@ def process_latents(latents, operation): # apply mean, average, etc
 
 def generate_image(latents): # takes in latents as input and generates an image with SD
   # ATTENTION: FOR SOME REASON, SETTING GUIDANCE SCALE TO 1 ABSOLUTELY FUCKS UP THE WHOLE PIPELINE, TREASURE YOUR BRAIN CELLS
+
   images = pipe(latents, num_inference_steps=4, guidance_scale=1.2, num_images_per_prompt=1, generator=generator)
   return images
 

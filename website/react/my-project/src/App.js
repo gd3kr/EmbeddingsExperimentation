@@ -4,24 +4,29 @@ import { useState, useRef, useCallback } from "react";
 import axios from "axios";
 
 // import image1 image2 and image3
-import image1 from "./image5.jpeg";
+import image1 from "./image1.jpeg";
 import image2 from "./image2.jpeg";
 import image3 from "./image3.jpeg";
+import waves from "./waves.png";
+
+// load images from testImages.json
 
 function App() {
+  const preloadedImages = require("./testimages.json").images;
 
   const sliderRef = useRef(null);
   const [gradientPositions, setGradientPositions] = useState([25, 50, 75]); // Default positions for the gradient stops
   const [color1, setColor1] = useState("#FF0000");
   const [color2, setColor2] = useState("#00FF00");
   const [color3, setColor3] = useState("#0000FF");
-  const [displayedImage, setDisplayedImage] = useState(image1);
-  const [images, setImages] = useState([]); // Array of images to be displayed
+  const [images, setImages] = useState(preloadedImages);
+  const [displayedImage, setDisplayedImage] = useState(images[0]);
+
 
   const convertImageToBase64 = (imgPath, callback) => {
     fetch(imgPath)
-      .then(response => response.blob())
-      .then(blob => {
+      .then((response) => response.blob())
+      .then((blob) => {
         const reader = new FileReader();
         reader.readAsDataURL(blob);
         reader.onloadend = () => {
@@ -29,18 +34,21 @@ function App() {
           callback(base64data);
         };
       })
-      .catch(error => console.error('Error:', error));
+      .catch((error) => console.error("Error:", error));
   };
 
   const storeLatents = (img, id) => {
     convertImageToBase64(img, (base64) => {
-    //  remove the header from the base64 string
-    base64 = base64.split(",")[1];
-    
-    axios.post("http://127.0.0.1:5000/store_latent", { image_b64: base64, id: id })
-      .then(response => console.log(response.data))
-      .catch(error => console.error('Error:', error));
+      //  remove the header from the base64 string
+      base64 = base64.split(",")[1];
 
+      axios
+        .post("http://127.0.0.1:5000/store_latent", {
+          image_b64: base64,
+          id: id,
+        })
+        .then((response) => console.log(response.data))
+        .catch((error) => console.error("Error:", error));
     });
   };
 
@@ -105,97 +113,120 @@ function App() {
   // #FF00FF 100%)`;
 
   return (
-    <div className="h-screen flex flex-col justify-center items-center bg-[#282828]">
+    <div className="h-screen flex flex-col justify-center items-center bg-white">
       {/* Black rectangle placeholder */}
-      <div className="bg-[#1B1B1B] w-5/6 m-[10px] p-12  rounded-xl  flex flex-col justify-around items-center gap-[100px]">
-        <h1 className="text-4xl text-white font-bold">
-          {/* Latent Surfing */}
-        </h1>
-        
-        {/* create an image in the center which shows displayed Image */}
-        <img
-          src={`data:image/png;base64,${displayedImage}`}
-          className="h-[250px] w-[250px] rounded-xl shadow-xl"
-          alt="displayed image"
-        />
 
-        {/* create a slider to change the image */}
-
-        {/* <SliderThumb sliderRef={sliderRef}/> */}
-
-        <div className="relative w-full h-8" ref={sliderRef}>
+      <div className="w-3/6">
+        <h1 className="ml-[10px] subheadline"> embeddings/</h1>
+        <h1 className="ml-[10px] text-3xl headline"> Latent Surfing </h1>
+        <div className="bg-[#F7F7F7]  m-[10px] p-12  rounded-xl  flex flex-col justify-around items-center gap-[100px]  border border-[#D2D2D2]">
+          {/* create an image in the center which shows displayed Image */}
           <div
-            className="absolute inset-0 m-auto w-full h-12 rounded-lg border-[6px] border-[#444444]"
-            style={{ background: gradient }}
-          ></div>
-          <SliderThumb
-            sliderRef={sliderRef}
-            className=" hover:scale-x-150 active:scale-x-150 -mt-[2px]"
-            images={images}
-            setImages={setImages}
-            setDisplayedImage={setDisplayedImage}
+            className="absolute"
+            style={{
+              borderRadius: '26px',
+              opacity: 0.6,
+              background: displayedImage?.includes("data:image/jpeg;base64,") 
+                ? `url(${displayedImage}) lightgray 50% / cover no-repeat`
+                : `url(data:image/jpeg;base64,${displayedImage}) lightgray 50% / cover no-repeat`,
+              mixBlendMode: 'hard-light',
+              filter: 'blur(52.599998474121094px)',
+              width: '270px', // slightly larger than the front image
+              height: '270px',
+              bottom: '45%',
+            }}
           />
-          {gradientPositions.map((position, index) => (
-            <SliderImageThumb
-              key={index}
-              index={index}
+          <img
+            src={displayedImage?.includes("data:image/jpeg;base64,") ? displayedImage : `data:image/jpeg;base64,${displayedImage}`}
+            className="h-[250px] w-[250px] rounded-xl shadow-xl relative"
+            alt="displayed image"
+          />
+
+          
+
+
+          {/* create a slider to change the image */}
+
+          {/* <SliderThumb sliderRef={sliderRef}/> */}
+
+          <div className="relative w-full h-8" ref={sliderRef}>
+            <div
+              className="absolute inset-0 m-auto w-full h-12 rounded-lg"
+              style={{ background: gradient }}
+            ></div>
+            <SliderThumb
               sliderRef={sliderRef}
-              className="-mt-[60px] h-[45px] w-[45px]"
-              updateColorPosition={updateGradientPosition}
+              className=" active:scale-105 -mt-[2px]"
+              images={images}
+              setImages={setImages}
+              setDisplayedImage={setDisplayedImage}
             />
-          ))}
+            {gradientPositions.map((position, index) => (
+              <SliderImageThumb
+                key={index}
+                index={index}
+                sliderRef={sliderRef}
+                className="-mt-[60px] h-[45px] w-[45px]"
+                updateColorPosition={updateGradientPosition}
+                setImage = {()=>{
+                  setDisplayedImage(index === 0 ? image1 : index === 1 ? image2 : image3)
+                }} 
+              />
+            ))}
+          </div>
         </div>
       </div>
 
       {/* button that when pressed prints the location of the gradient */}
       <button
         className="bg-[#1B1B1B] text-white rounded-lg p-2"
-        onClick={async () =>{
+        onClick={async () => {
           // const normalizedPositions = gradientPositions.map((pos) => (pos / 100).toFixed(3));
           // console.log(normalizedPositions);
           await storeLatents(image1, 1);
           await storeLatents(image2, 2);
           await storeLatents(image3, 3);
-        }
-        }
+        }}
       >
         Compute Latents
       </button>
       <button
         className="bg-[#1B1B1B] text-white rounded-lg p-2"
-        onClick={() =>{ 
-
+        onClick={() => {
           // delete all images
           setImages([]);
 
           const options = {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'User-Agent': 'insomnia/8.4.5' },
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "User-Agent": "insomnia/8.4.5",
+            },
             body: JSON.stringify({
-                id_a: 1,
-                id_b: 2,
-                id_c: 3,
+              id_a: 1,
+              id_b: 2,
+              id_c: 3,
               num_images: 100,
               // positions: [0.1, 0.2, 0.8]
-              positions: gradientPositions.map((pos) => parseFloat((pos / 100).toFixed(1)))
-            })
+              positions: gradientPositions.map((pos) =>
+                parseFloat((pos / 100).toFixed(1))
+              ),
+            }),
           };
 
-          console.log(options)
+          console.log(options);
           // return;
 
-          fetch('http://127.0.0.1:5000/pregenerate', options)
-        .then(response => response.json())
-        .then(response => {
-          console.log(response)
-          setImages(response.images)
-          // images = response.images
-          // Distribute images based on the position of the button
-
-        })
-        .catch(err => console.error(err));
-        }
-        }
+          fetch("http://127.0.0.1:5000/pregenerate", options)
+            .then((response) => response.json())
+            .then((response) => {
+              console.log(response);
+              setImages(response.images);
+              // images = response.images
+              // Distribute images based on the position of the button
+            })
+            .catch((err) => console.error(err));
+        }}
       >
         Generate
       </button>
@@ -213,12 +244,16 @@ const SliderImageThumb = ({
   sliderRef,
   className,
   updateColorPosition,
+  setImage,
 }) => {
-  const [position, setPosition] = useState((index + 1) * 30);
+  const [position, setPosition] = useState(index * 45);
 
   const startDrag = (e) => {
     const slider = sliderRef.current;
     console.log(slider);
+    setImage()
+
+    // set the current image to the one that is being dragged
 
     const updatePosition = (e) => {
       if (!slider) return; // Ensure that slider is not null or undefined
@@ -227,7 +262,7 @@ const SliderImageThumb = ({
       const newPosition = e.clientX - rect.left;
       const endPosition = rect.width;
 
-      if (newPosition >= 0 && newPosition <= endPosition-50) {
+      if (newPosition >= 3 && newPosition <= endPosition) {
         const positionPercent = (newPosition / endPosition) * 100;
         setPosition(positionPercent);
         updateColorPosition(index, positionPercent);
@@ -260,8 +295,14 @@ const SliderImageThumb = ({
   );
 };
 
-const SliderThumb = ({ sliderRef, className, images, setImages, setDisplayedImage}) => {
-  const [position, setPosition] = useState(0);
+const SliderThumb = ({
+  sliderRef,
+  className,
+  images,
+  setImages,
+  setDisplayedImage,
+}) => {
+  const [position, setPosition] = useState(1);
 
   const startDrag = (e) => {
     const slider = sliderRef.current;
@@ -274,11 +315,15 @@ const SliderThumb = ({ sliderRef, className, images, setImages, setDisplayedImag
       const newPosition = e.clientX - rect.left;
       const endPosition = rect.width;
 
-      if (newPosition >= 0 && newPosition <= endPosition) {
+      if (newPosition >= 1 && newPosition <= endPosition - 40) {
         const positionPercent = (newPosition / endPosition) * 100;
         setPosition(positionPercent);
-        const imageIndex = Math.round(positionPercent * (images.length - 1) / 100);
-        setDisplayedImage(images[imageIndex]);
+        const imageIndex = Math.round(
+          (positionPercent * (images.length - 1)) / 100
+        );
+        if (images[imageIndex] != null) {
+          setDisplayedImage(images[imageIndex]);
+        }
       }
     };
 
@@ -292,11 +337,14 @@ const SliderThumb = ({ sliderRef, className, images, setImages, setDisplayedImag
   return (
     <div>
       <div
-        className={`w-4 h-[35px] bg-white rounded-md absolute cursor-pointer transition-transform ${className} `}
+        className={`w-4 h-[35px] w-[35px] bg-white rounded-md absolute cursor-pointer transition-transform ${className} flex justify-center items-center`}
         style={{ left: `${position}%` }}
         onMouseDown={startDrag}
       >
         {/* Draggable thumb */}
+        <div className="flex justify-center space-x-1">
+          <h1>🏄</h1>
+        </div>
       </div>
     </div>
   );

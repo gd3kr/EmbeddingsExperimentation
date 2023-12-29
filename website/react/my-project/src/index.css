@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Nanum+Myeongjo&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code&family=Nanum+Myeongjo&display=swap');
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -9,6 +12,30 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.headline{
+  font-family: 'Nanum Myeongjo', serif;
+  font-size: 42px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: normal;
+  letter-spacing: -2.94px;
+  background: linear-gradient(90deg, #3C43E9 -11.33%, #B4B7FF 49.49%, #ED7FFF 113.8%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  /* display: inline-block; */
+}
+
+
+.subheadline{
+  font-family: 'Fira Code', monospace;
+  font-size: 0.7rem;
+  font-weight: 300;
+  line-height: 1.1;
+  letter-spacing: -0.07em;
+  color: #3D3D3D;
 }
 
 code {

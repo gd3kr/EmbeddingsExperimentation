@@ -110,6 +110,26 @@ def retrieve_timesteps(
 class CustomPipeline(StableDiffusionPipeline):
     model_cpu_offload_seq = "image_encoder->unet->vae"
 
+    def prepare_latents(self, batch_size, num_channels_latents, height, width, dtype, device, generator, latents=None):
+        shape = (batch_size, num_channels_latents, height // self.vae_scale_factor, width // self.vae_scale_factor)
+        if isinstance(generator, list) and len(generator) != batch_size:
+            raise ValueError(
+                f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
+                f" size of {batch_size}. Make sure the batch size matches the length of the generators."
+            )
+
+        if latents is None:
+            generator.manual_seed(0)  # Force the generator seed for reproducibility
+            print("sampling random latents")
+            latents = randn_tensor(shape, generator=generator, device=device, dtype=dtype)
+            print("seed is: ", generator.initial_seed())
+            print("shape of latents: " + str(shape))
+        else:
+            latents = latents.to(device)
+
+        return latents
+
+
     def __init__(
         self,
         vae: AutoencoderKL,
@@ -428,7 +448,7 @@ def generate_image(latents): # takes in latents as input and generates an image 
     
   start = time.time()
   images = pipe(
-        prompt="anime ghibli",
+        prompt="high quality",
         input_image_embeds=latents,
         ip_adapter_image=test_image,
         num_inference_steps=5,
@@ -624,11 +644,15 @@ def pregenerate():
         if step <= positions[0]:
             interpolated_latent = latents_store[id_a]
         elif step <= positions[1]:
-            interpolated_latent = mix_images(latents_store[id_a], latents_store[id_b], (step - positions[0]) / (positions[1] - positions[0]))
+            # interpolated_latent = mix_images(latents_store[id_a], latents_store[id_b], (step - positions[0]) / (positions[1] - positions[0]))
+            interpolated_latent = slerp(latents_store[id_a], latents_store[id_b], (step - positions[0]) / (positions[1] - positions[0]))
         elif step <= positions[2]:
-            interpolated_latent = mix_images(latents_store[id_b], latents_store[id_c], (step - positions[1]) / (positions[2] - positions[1]))
+            # interpolated_latent = mix_images(latents_store[id_b], latents_store[id_c], (step - positions[1]) / (positions[2] - positions[1]))
+            interpolated_latent = slerp(latents_store[id_a], latents_store[id_b], (step - positions[0]) / (positions[1] - positions[0]))
+
         else:
             interpolated_latent = latents_store[id_c]
+            # inter
 
         # if step <= positions[1]:
         #     interpolated_latent = mix_images(latents_store[id_a], latents_store[id_b], step / positions[1])

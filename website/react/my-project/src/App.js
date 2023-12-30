@@ -116,124 +116,151 @@ function App() {
     <div className="h-screen flex flex-col justify-center items-center bg-white">
       {/* Black rectangle placeholder */}
 
-      <div className="w-[500px]">
+
+      <div className="w-[800px] ">
         <h1 className="ml-[10px] subheadline"> embeddings/</h1>
         <h1 className="ml-[10px] text-3xl headline"> Latent Surfing </h1>
-        <div className="bg-[#F7F7F7]  m-[10px] p-12  rounded-xl  flex flex-col justify-around items-center gap-[100px]  border border-[#D2D2D2]">
-          {/* create an image in the center which shows displayed Image */}
-          <div
-            className="absolute"
-            style={{
-              borderRadius: '26px',
-              opacity: 0.9,
-              background: displayedImage?.includes("data:image/jpeg;base64,") 
-                ? `url(${displayedImage}) lightgray 50% / cover no-repeat`
-                : `url(data:image/jpeg;base64,${displayedImage}) lightgray 50% / cover no-repeat`,
-              mixBlendMode: 'hard-light',
-              filter: 'blur(52.599998474121094px)',
-              width: '270px', // slightly larger than the front image
-              height: '270px',
-              bottom: '45%',
-            }}
-          />
-          <img
-            src={displayedImage?.includes("data:image/jpeg;base64,") ? displayedImage : `data:image/jpeg;base64,${displayedImage}`}
-            className="h-[250px] w-[250px] rounded-xl shadow-xl relative"
-            alt="displayed image"
-          />
-
+        <div className="flex justify-center items-stretch m-2 w-full gap-2">
+          <div className=" w-[400px] bg-[#F7F7F7]  p-12  rounded-xl  flex flex-col justify-around items-center gap-[100px]  border border-[#D2D2D2]">
           
-
-
-          {/* create a slider to change the image */}
-
-          {/* <SliderThumb sliderRef={sliderRef}/> */}
-
-          <div className="relative w-full h-8" ref={sliderRef}>
-            <div
-              className="absolute inset-0 m-auto w-full h-12 rounded-lg"
-              style={{ background: gradient }}
-            ></div>
-            <SliderThumb
-              sliderRef={sliderRef}
-              className=" active:scale-105 -mt-[2px]"
-              images={images}
-              setImages={setImages}
-              setDisplayedImage={setDisplayedImage}
+          {/* three images taken as input in one column */}
+          <div className="flex flex-col justify-around items-center gap-5">
+            <img
+              src={image1}
+              className=" rounded-xl shadow-xl"
+              alt="image1"
             />
-            {gradientPositions.map((position, index) => (
-              <SliderImageThumb
-                key={index}
-                index={index}
+            <img
+              src={image2}
+              className="rounded-xl shadow-xl"
+              alt="image2"
+            />
+            <img
+              src={image3}
+              className=" rounded-xl shadow-xl"
+              alt="image3"
+            />
+          </div>
+          </div>
+
+
+          <div className="w-[800px] bg-[#F7F7F7] p-12  rounded-xl  flex flex-col justify-around items-center gap-[100px]  border border-[#D2D2D2]">
+            {/* create an image in the center which shows displayed Image */}
+            <div
+              className="absolute"
+              style={{
+                borderRadius: '26px',
+                opacity: 0.9,
+                background: displayedImage?.includes("data:image/jpeg;base64,")
+                  ? `url(${displayedImage}) lightgray 50% / cover no-repeat`
+                  : `url(data:image/jpeg;base64,${displayedImage}) lightgray 50% / cover no-repeat`,
+                mixBlendMode: 'hard-light',
+                filter: 'blur(52.599998474121094px)',
+                width: '270px', // slightly larger than the front image
+                height: '270px',
+                bottom: '45%',
+              }}
+            />
+            <img
+              src={displayedImage?.includes("data:image/jpeg;base64,") ? displayedImage : `data:image/jpeg;base64,${displayedImage}`}
+              className="h-[250px] w-[250px] rounded-xl shadow-xl relative"
+              alt="displayed image"
+            />
+
+
+
+
+            {/* create a slider to change the image */}
+
+            {/* <SliderThumb sliderRef={sliderRef}/> */}
+
+            <div className="relative w-full h-8" ref={sliderRef}>
+              <div
+                className="absolute inset-0 m-auto w-full h-12 rounded-lg"
+                style={{ background: gradient }}
+              ></div>
+              <SliderThumb
                 sliderRef={sliderRef}
-                className="-mt-[60px] h-[45px] w-[45px]"
-                updateColorPosition={updateGradientPosition}
-                setImage = {()=>{
-                  setDisplayedImage(index === 0 ? image1 : index === 1 ? image2 : image3)
-                }} 
+                className=" active:scale-105 -mt-[2px]"
+                images={images}
+                setImages={setImages}
+                setDisplayedImage={setDisplayedImage}
               />
-            ))}
+              {gradientPositions.map((position, index) => (
+                <SliderImageThumb
+                  key={index}
+                  index={index}
+                  sliderRef={sliderRef}
+                  className="-mt-[60px] h-[45px] w-[45px]"
+                  updateColorPosition={updateGradientPosition}
+                  setImage={() => {
+                    setDisplayedImage(index === 0 ? image1 : index === 1 ? image2 : image3)
+                  }}
+                />
+              ))}
+            </div>
           </div>
         </div>
+
       </div>
 
       {/* button that when pressed prints the location of the gradient */}
       <div
-      className="flex justify-center  space-x-2 items-end align-bottom "
+        className="flex justify-start space-x-2 "
       >
 
-      <button
-        className="bg-[#F7F7F7] border border-[#D2D2D2] text-black rounded-lg p-2 nanum"
-        onClick={async () => {
-          // const normalizedPositions = gradientPositions.map((pos) => (pos / 100).toFixed(3));
-          // console.log(normalizedPositions);
-          await storeLatents(image1, 1);
-          await storeLatents(image2, 2);
-          await storeLatents(image3, 3);
-        }}
-      >
-        Compute Latents
-      </button>
-      <button
-        className="bg-[#F7F7F7] border border-[#D2D2D2] text-black rounded-lg p-2 nanum"
-        onClick={() => {
-          // delete all images
-          setImages([]);
+        <button
+          className="bg-[#F7F7F7] border border-[#D2D2D2] text-black rounded-lg p-2 nanum"
+          onClick={async () => {
+            // const normalizedPositions = gradientPositions.map((pos) => (pos / 100).toFixed(3));
+            // console.log(normalizedPositions);
+            await storeLatents(image1, 1);
+            await storeLatents(image2, 2);
+            await storeLatents(image3, 3);
+          }}
+        >
+          Compute Latents
+        </button>
+        <button
+          className="bg-[#F7F7F7] border border-[#D2D2D2] text-black rounded-lg p-2 nanum"
+          onClick={() => {
+            // delete all images
+            setImages([]);
 
-          const options = {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "User-Agent": "insomnia/8.4.5",
-            },
-            body: JSON.stringify({
-              id_a: 1,
-              id_b: 2,
-              id_c: 3,
-              num_images: 100,
-              // positions: [0.1, 0.2, 0.8]
-              positions: gradientPositions.map((pos) =>
-                parseFloat((pos / 100).toFixed(1))
-              ),
-            }),
-          };
+            const options = {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "User-Agent": "insomnia/8.4.5",
+              },
+              body: JSON.stringify({
+                id_a: 1,
+                id_b: 2,
+                id_c: 3,
+                num_images: 100,
+                // positions: [0.1, 0.2, 0.8]
+                positions: gradientPositions.map((pos) =>
+                  parseFloat((pos / 100).toFixed(1))
+                ),
+              }),
+            };
 
-          console.log(options);
-          // return;
+            console.log(options);
+            // return;
 
-          fetch("http://127.0.0.1:5000/pregenerate", options)
-            .then((response) => response.json())
-            .then((response) => {
-              console.log(response);
-              setImages(response.images);
-              // images = response.images
-              // Distribute images based on the position of the button
-            })
-            .catch((err) => console.error(err));
-        }}
-      >
-        Generate
-      </button>
+            fetch("http://127.0.0.1:5000/pregenerate", options)
+              .then((response) => response.json())
+              .then((response) => {
+                console.log(response);
+                setImages(response.images);
+                // images = response.images
+                // Distribute images based on the position of the button
+              })
+              .catch((err) => console.error(err));
+          }}
+        >
+          Generate
+        </button>
       </div>
 
       {/* Progress bar/slider placeholder */}
@@ -286,9 +313,8 @@ const SliderImageThumb = ({
         className={`w-2 h-[35px] bg-white rounded-md absolute cursor-pointer transition-transform active:translate-y-[-10px] active:scale-150 hover:scale-105 ${className}`}
         style={{
           left: `${index == 0 ? position : index == 1 ? position - 5 : position - 10}%`,
-          backgroundImage: `url(${
-            index === 0 ? image1 : index === 1 ? image2 : image3
-          })`,
+          backgroundImage: `url(${index === 0 ? image1 : index === 1 ? image2 : image3
+            })`,
           backgroundSize: "cover",
         }}
         onMouseDown={startDrag}
@@ -352,7 +378,7 @@ const SliderThumb = ({
       </div>
     </div>
   );
-  
+
 };
 
 export default App;

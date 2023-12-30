@@ -19,6 +19,7 @@ from diffusers.models import ImageProjection
 # torchvision transforms
 from torchvision import transforms
 
+from diffusers import AutoencoderTiny
 
 
 
@@ -398,9 +399,11 @@ def load_model():
     # model_id =  "sd-dreambooth-library/herge-style"
     model_id = "runwayml/stable-diffusion-v1-5"
     pipe = CustomPipeline.from_pretrained(model_id, torch_dtype=torch.float16).to("cuda")
+    pipe.vae = AutoencoderTiny.from_pretrained("madebyollin/taesd").to(device="cuda", dtype=torch.float16)
     pipe.safety_checker = None
 
     pipe.load_ip_adapter("h94/IP-Adapter", subfolder="models", weight_name="ip-adapter_sd15.bin", torch_dtype=torch.float16)
+
 
     pipe.scheduler = LCMScheduler.from_config(pipe.scheduler.config)
 
@@ -624,6 +627,8 @@ def pregenerate():
     id_b = data['id_b']
     id_c = data['id_c']
     positions = data['positions'] # array of length 3, each element is a number between 0 and 1
+    positions[0] = 0
+    positions[2] = 1
     images = {}
 
 
@@ -648,8 +653,7 @@ def pregenerate():
             interpolated_latent = slerp(latents_store[id_a], latents_store[id_b], (step - positions[0]) / (positions[1] - positions[0]))
         elif step <= positions[2]:
             # interpolated_latent = mix_images(latents_store[id_b], latents_store[id_c], (step - positions[1]) / (positions[2] - positions[1]))
-            interpolated_latent = slerp(latents_store[id_a], latents_store[id_b], (step - positions[0]) / (positions[1] - positions[0]))
-
+            interpolated_latent = slerp(latents_store[id_b], latents_store[id_c], (step - positions[1]) / (positions[2] - positions[1]))
         else:
             interpolated_latent = latents_store[id_c]
             # inter

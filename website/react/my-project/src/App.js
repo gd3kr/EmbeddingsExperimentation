@@ -4,22 +4,22 @@ import { useState, useRef, useCallback } from "react";
 import axios from "axios";
 
 // import image1 image2 and image3
-import image1 from "./image1.jpeg";
-import image2 from "./image2.jpeg";
-import image3 from "./image3.jpeg";
+import image1 from "./image6.jpeg";
+import image2 from "./image7.jpeg";
+import image3 from "./image8.jpeg";
 import waves from "./waves.png";
 
 // load images from testImages.json
 
 function App() {
-  const preloadedImages = require("./testimages.json").images;
+  // const preloadedImages = require("./testimages.json").images;
 
   const sliderRef = useRef(null);
   const [gradientPositions, setGradientPositions] = useState([25, 50, 75]); // Default positions for the gradient stops
   const [color1, setColor1] = useState("#FF0000");
   const [color2, setColor2] = useState("#00FF00");
   const [color3, setColor3] = useState("#0000FF");
-  const [images, setImages] = useState(preloadedImages);
+  const [images, setImages] = useState([]);
   const [displayedImage, setDisplayedImage] = useState(images[0]);
 
 
@@ -116,7 +116,7 @@ function App() {
     <div className="h-screen flex flex-col justify-center items-center bg-white">
       {/* Black rectangle placeholder */}
 
-      <div className="w-3/6">
+      <div className="w-[500px]">
         <h1 className="ml-[10px] subheadline"> embeddings/</h1>
         <h1 className="ml-[10px] text-3xl headline"> Latent Surfing </h1>
         <div className="bg-[#F7F7F7]  m-[10px] p-12  rounded-xl  flex flex-col justify-around items-center gap-[100px]  border border-[#D2D2D2]">
@@ -125,7 +125,7 @@ function App() {
             className="absolute"
             style={{
               borderRadius: '26px',
-              opacity: 0.6,
+              opacity: 0.9,
               background: displayedImage?.includes("data:image/jpeg;base64,") 
                 ? `url(${displayedImage}) lightgray 50% / cover no-repeat`
                 : `url(data:image/jpeg;base64,${displayedImage}) lightgray 50% / cover no-repeat`,
@@ -178,8 +178,12 @@ function App() {
       </div>
 
       {/* button that when pressed prints the location of the gradient */}
+      <div
+      className="flex justify-center  space-x-2 items-end align-bottom "
+      >
+
       <button
-        className="bg-[#1B1B1B] text-white rounded-lg p-2"
+        className="bg-[#F7F7F7] border border-[#D2D2D2] text-black rounded-lg p-2 nanum"
         onClick={async () => {
           // const normalizedPositions = gradientPositions.map((pos) => (pos / 100).toFixed(3));
           // console.log(normalizedPositions);
@@ -191,7 +195,7 @@ function App() {
         Compute Latents
       </button>
       <button
-        className="bg-[#1B1B1B] text-white rounded-lg p-2"
+        className="bg-[#F7F7F7] border border-[#D2D2D2] text-black rounded-lg p-2 nanum"
         onClick={() => {
           // delete all images
           setImages([]);
@@ -230,6 +234,7 @@ function App() {
       >
         Generate
       </button>
+      </div>
 
       {/* Progress bar/slider placeholder */}
 
@@ -246,11 +251,10 @@ const SliderImageThumb = ({
   updateColorPosition,
   setImage,
 }) => {
-  const [position, setPosition] = useState(index * 45);
+  const [position, setPosition] = useState(index === 0 ? 0 : index === 1 ? 50 : 100)
 
   const startDrag = (e) => {
-    const slider = sliderRef.current;
-    console.log(slider);
+    const slider = sliderRef.current
     setImage()
 
     // set the current image to the one that is being dragged
@@ -281,7 +285,7 @@ const SliderImageThumb = ({
       <div
         className={`w-2 h-[35px] bg-white rounded-md absolute cursor-pointer transition-transform active:translate-y-[-10px] active:scale-150 hover:scale-105 ${className}`}
         style={{
-          left: `${position}%`,
+          left: `${index == 0 ? position : index == 1 ? position - 5 : position - 10}%`,
           backgroundImage: `url(${
             index === 0 ? image1 : index === 1 ? image2 : image3
           })`,
@@ -315,7 +319,7 @@ const SliderThumb = ({
       const newPosition = e.clientX - rect.left;
       const endPosition = rect.width;
 
-      if (newPosition >= 1 && newPosition <= endPosition - 40) {
+      if (newPosition >= 1 && newPosition <= endPosition) {
         const positionPercent = (newPosition / endPosition) * 100;
         setPosition(positionPercent);
         const imageIndex = Math.round(
@@ -338,7 +342,7 @@ const SliderThumb = ({
     <div>
       <div
         className={`w-4 h-[35px] w-[35px] bg-white rounded-md absolute cursor-pointer transition-transform ${className} flex justify-center items-center`}
-        style={{ left: `${position}%` }}
+        style={{ left: `${position}%`, userSelect: 'none' }} // Added userSelect property here
         onMouseDown={startDrag}
       >
         {/* Draggable thumb */}
@@ -348,6 +352,7 @@ const SliderThumb = ({
       </div>
     </div>
   );
+  
 };
 
 export default App;

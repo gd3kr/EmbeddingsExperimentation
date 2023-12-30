@@ -122,30 +122,30 @@ function App() {
         <h1 className="ml-[10px] text-3xl headline"> Latent Surfing </h1>
         <div className="flex justify-center items-stretch m-2 w-full gap-2">
           <div className=" w-[400px] bg-[#F7F7F7]  p-12  rounded-xl  flex flex-col justify-around items-center gap-[100px]  border border-[#D2D2D2]">
-          
-          {/* three images taken as input in one column */}
-          <div className="flex flex-col justify-around items-center gap-5">
-            <h1 className="subheadline self-start">inputs</h1>
-            <img
-              src={image1}
-              className=" rounded-xl shadow-xl"
-              alt="image1"
-            />
-            <img
-              src={image2}
-              className="rounded-xl shadow-xl"
-              alt="image2"
-            />
-            <img
-              src={image3}
-              className=" rounded-xl shadow-xl"
-              alt="image3"
-            />
-          </div>
+
+            {/* three images taken as input in one column */}
+            <div className="flex flex-col justify-around items-center gap-5">
+              <h1 className="subheadline self-start">inputs</h1>
+              <img
+                src={image1}
+                className=" rounded-xl shadow-xl"
+                alt="image1"
+              />
+              <img
+                src={image2}
+                className="rounded-xl shadow-xl"
+                alt="image2"
+              />
+              <img
+                src={image3}
+                className=" rounded-xl shadow-xl"
+                alt="image3"
+              />
+            </div>
           </div>
 
 
-          <div className="w-[800px] bg-[#F7F7F7] p-12  rounded-xl  flex flex-col justify-center items-center gap-[100px]  border border-[#D2D2D2]">
+          <div className="w-[800px] bg-[#F7F7F7] p-12  rounded-xl  flex flex-col justify-center gap-[20px] items-center  border border-[#D2D2D2]">
             {/* create an image in the center which shows displayed Image */}
             <div
               className="absolute"
@@ -168,14 +168,7 @@ function App() {
               alt="displayed image"
             />
 
-
-
-
-            {/* create a slider to change the image */}
-
-            {/* <SliderThumb sliderRef={sliderRef}/> */}
-
-            <div className="relative w-full h-8" ref={sliderRef}>
+            <div className="relative w-full h-8 mt-[100px]" ref={sliderRef}>
               <div
                 className="absolute inset-0 m-auto w-full h-12 rounded-lg"
                 style={{ background: gradient }}
@@ -200,71 +193,70 @@ function App() {
                 />
               ))}
             </div>
-            
+            <div
+              className="flex  w-full space-x-2  mx-2 items-stretch content-stretch justify-center"
+            >
+
+              <button
+                className="bg-[#F7F7F7] border border-[#D2D2D2] text-black rounded-lg p-2 nanum w-full"
+                onClick={async () => {
+                  // const normalizedPositions = gradientPositions.map((pos) => (pos / 100).toFixed(3));
+                  // console.log(normalizedPositions);
+                  await storeLatents(image1, 1);
+                  await storeLatents(image2, 2);
+                  await storeLatents(image3, 3);
+                }}
+              >
+                Compute Latents
+              </button>
+              <button
+                className="bg-[#F7F7F7] border border-[#D2D2D2] text-black rounded-lg p-2 nanum w-full"
+                onClick={() => {
+                  // delete all images
+                  setImages([]);
+
+                  const options = {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "User-Agent": "insomnia/8.4.5",
+                    },
+                    body: JSON.stringify({
+                      id_a: 1,
+                      id_b: 2,
+                      id_c: 3,
+                      num_images: 100,
+                      // positions: [0.1, 0.2, 0.8]
+                      positions: gradientPositions.map((pos) =>
+                        parseFloat((pos / 100).toFixed(1))
+                      ),
+                    }),
+                  };
+
+                  console.log(options);
+                  // return;
+
+                  fetch("http://127.0.0.1:5000/pregenerate", options)
+                    .then((response) => response.json())
+                    .then((response) => {
+                      console.log(response);
+                      setImages(response.images);
+                      // images = response.images
+                      // Distribute images based on the position of the button
+                    })
+                    .catch((err) => console.error(err));
+                }}
+              >
+                Generate
+              </button>
+            </div>
           </div>
         </div>
-        
-      </div>
-      <div
-        className="flex justify-center space-x-2 w-full"
-      >
 
-        <button
-          className="bg-[#F7F7F7] border border-[#D2D2D2] text-black rounded-lg p-2 nanum"
-          onClick={async () => {
-            // const normalizedPositions = gradientPositions.map((pos) => (pos / 100).toFixed(3));
-            // console.log(normalizedPositions);
-            await storeLatents(image1, 1);
-            await storeLatents(image2, 2);
-            await storeLatents(image3, 3);
-          }}
-        >
-          Compute Latents
-        </button>
-        <button
-          className="bg-[#F7F7F7] border border-[#D2D2D2] text-black rounded-lg p-2 nanum"
-          onClick={() => {
-            // delete all images
-            setImages([]);
-
-            const options = {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "User-Agent": "insomnia/8.4.5",
-              },
-              body: JSON.stringify({
-                id_a: 1,
-                id_b: 2,
-                id_c: 3,
-                num_images: 100,
-                // positions: [0.1, 0.2, 0.8]
-                positions: gradientPositions.map((pos) =>
-                  parseFloat((pos / 100).toFixed(1))
-                ),
-              }),
-            };
-
-            console.log(options);
-            // return;
-
-            fetch("http://127.0.0.1:5000/pregenerate", options)
-              .then((response) => response.json())
-              .then((response) => {
-                console.log(response);
-                setImages(response.images);
-                // images = response.images
-                // Distribute images based on the position of the button
-              })
-              .catch((err) => console.error(err));
-          }}
-        >
-          Generate
-        </button>
       </div>
 
       {/* button that when pressed prints the location of the gradient */}
-      
+
 
       {/* Progress bar/slider placeholder */}
 

@@ -125,6 +125,7 @@ function App() {
           
           {/* three images taken as input in one column */}
           <div className="flex flex-col justify-around items-center gap-5">
+            <h1 className="subheadline self-start">inputs</h1>
             <img
               src={image1}
               className=" rounded-xl shadow-xl"
@@ -144,13 +145,13 @@ function App() {
           </div>
 
 
-          <div className="w-[800px] bg-[#F7F7F7] p-12  rounded-xl  flex flex-col justify-around items-center gap-[100px]  border border-[#D2D2D2]">
+          <div className="w-[800px] bg-[#F7F7F7] p-12  rounded-xl  flex flex-col justify-center items-center gap-[100px]  border border-[#D2D2D2]">
             {/* create an image in the center which shows displayed Image */}
             <div
               className="absolute"
               style={{
                 borderRadius: '26px',
-                opacity: 0.9,
+                opacity: 0.7,
                 background: displayedImage?.includes("data:image/jpeg;base64,")
                   ? `url(${displayedImage}) lightgray 50% / cover no-repeat`
                   : `url(data:image/jpeg;base64,${displayedImage}) lightgray 50% / cover no-repeat`,
@@ -199,14 +200,13 @@ function App() {
                 />
               ))}
             </div>
+            
           </div>
         </div>
-
+        
       </div>
-
-      {/* button that when pressed prints the location of the gradient */}
       <div
-        className="flex justify-start space-x-2 "
+        className="flex justify-center space-x-2 w-full"
       >
 
         <button
@@ -262,6 +262,9 @@ function App() {
           Generate
         </button>
       </div>
+
+      {/* button that when pressed prints the location of the gradient */}
+      
 
       {/* Progress bar/slider placeholder */}
 

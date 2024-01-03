@@ -411,7 +411,7 @@ class CustomPipeline(StableDiffusionPipeline):
 
 def load_model():
     # model_id =  "sd-dreambooth-library/herge-style"
-    model_id = "runwayml/stable-diffusion-v1-5"
+    model_id = "Lykon/DreamShaper"
     pipe = CustomPipeline.from_pretrained(model_id, torch_dtype=torch.float16).to("cuda")
     pipe.vae = AutoencoderTiny.from_pretrained("madebyollin/taesd").to(device="cuda", dtype=torch.float16)
     pipe.safety_checker = None
@@ -452,6 +452,13 @@ def process_latents(latents, operation): # apply mean, average, etc
         latent = slerp(start_embedding, end_embedding, t)
         interpolated.append(latent)
       return torch.stack(interpolated)
+    if operation == "mix":
+        start_embedding = latents[0]
+        end_embedding = latents[1]
+        interpolated = []
+        for t in torch.linspace(0, 1, 10):
+            latent = mix_images(start_embedding, end_embedding, t)
+            interpolated.append(latent)
 
 
 test_image = load_image("https://is1-ssl.mzstatic.com/image/thumb/Purple1/v4/a7/75/85/a77585b2-1818-46cc-0e18-2669cb1869a2/source/512x512bb.jpg")
@@ -468,7 +475,7 @@ def generate_image(latents, prompt_embeds, negative_prompt_embeds): # takes in l
         # prompt="made out of lego, colorful, rainbow",
         input_image_embeds=latents,
         ip_adapter_image=test_image,
-        num_inference_steps=4,
+        num_inference_steps=5,
         guidance_scale=1.2, #change to 1.9
         generator=generator,
         do_classifier_free_guidance=True, 
@@ -524,8 +531,11 @@ print("COMPILED!!!!!")
 # NOTE: Warm it up.
 # The initial calls will trigger compilation and might be very slow.
 # After that, it should be very fast.
-image = load_image("https://is1-ssl.mzstatic.com/image/thumb/Purple1/v4/a7/75/85/a77585b2-1818-46cc-0e18-2669cb1869a2/source/512x512bb.jpg")
-image = load_image("https://pbs.twimg.com/media/F2_uILUXwAA0erl.jpg")
+# image = load_image("https://is1-ssl.mzstatic.com/image/thumb/Purple1/v4/a7/75/85/a77585b2-1818-46cc-0e18-2669cb1869a2/source/512x512bb.jpg")
+# image = load_image("https://pbs.twimg.com/media/F2_uILUXwAA0erl.jpg")
+# image = load_image("https://pbs.twimg.com/media/GCiPBxfWgAAWByB?format=jpg&name=medium")
+# image = load_image("https://pbs.twimg.com/media/GCc-Uw5WYAAvec2?format=jpg&name=large")
+image = load_image("https://upload.wikimedia.org/wikipedia/commons/0/02/Great_Wave_off_Kanagawa_-_reversed.png")
 # image = load_image("https://res.cloudinary.com/dk-find-out/image/upload/q_80,w_1920,f_auto/MA_00162721_yqcuno.jpg")
 # image = load_image("https://images.wsj.net/im-398311?width=1280&size=1")
 # image = load_image("https://www.byronmusic.com.au/cdn/shop/products/martinez-small-body-acoustic-guitar-spruce-top-mf-25-nst-28769932050627_1200x.jpg?v=1651056022")
@@ -541,26 +551,27 @@ latent = torch.cat([negative_image_embeds, image_embeds])
 latent = mix_images(latent, latent, 0.5)
 
 
-for i in range(10):
-    prompt_embeds, negative_prompt_embeds = CustomPipeline.encode_prompt(
-            pipe,
-            "made out of lego, masterful composition",
-            device,
-            1,
-            True,
-    )
 
-    print("prompt embeds shape: ", prompt_embeds.shape)
-    print("negative prompt embeds shape: ", negative_prompt_embeds.shape)
+hq_prompt_embeds, hq_negative_prompt_embeds = CustomPipeline.encode_prompt(
+    pipe,
+        "high quality, unreal engine, masterful composition",
+        device,
+        1,
+        True,
+)
 
-    # # normalise and scale prompt embeds and negative prompt embeds
-    prompt_embeds = prompt_embeds / prompt_embeds.norm(dim=-1, keepdim=True)
-    negative_prompt_embeds = negative_prompt_embeds / negative_prompt_embeds.norm(dim=-1, keepdim=True)
-    prompt_embeds = prompt_embeds * i * 5
-    negative_prompt_embeds = negative_prompt_embeds * i * 5
+lego_prompt_embeds, lego_negative_prompt_embeds = CustomPipeline.encode_prompt(
+        pipe,
+        "purple colored water, high quality, unreal engine, masterful composition",
+        device,
+        1,
+        True,
+)
 
-
-    image = generate_image(latent, prompt_embeds, negative_prompt_embeds).images[0]
+prompt_latents = [hq_prompt_embeds, lego_prompt_embeds]
+prompt_latents = process_latents(prompt_latents, "slerp")
+for i, pl in enumerate(prompt_latents):
+    image = generate_image(latent, pl*1.2, hq_negative_prompt_embeds).images[0]
     # save image
     image.save(f"test_images/{i}.jpg")
 

@@ -243,17 +243,31 @@ class CustomPipeline(StableDiffusionPipeline):
         print("classifier free guidance is")
         print(self.do_classifier_free_guidance)
 
-        prompt_embeds, negative_prompt_embeds = self.encode_prompt(
-            prompt,
-            device,
-            num_images_per_prompt,
-            self.do_classifier_free_guidance,
-            negative_prompt,
-            prompt_embeds=prompt_embeds,
-            negative_prompt_embeds=negative_prompt_embeds,
-            lora_scale=lora_scale,
-            clip_skip=self.clip_skip,
-        )
+
+        # print("embedding prompt with settings:")
+        # print("prompt: ", prompt)
+        # print("device: ", device)
+        # print("num_images_per_prompt: ", num_images_per_prompt )
+        # print("do_classifier_free_guidance: ", self.do_classifier_free_guidance)
+        # print("negative_prompt: ", negative_prompt)
+        # print("prompt_embeds: ", prompt_embeds)
+        # print("negative_prompt_embeds: ", negative_prompt_embeds)
+        # print("lora scale: ", lora_scale)
+        # print("clip_skip: ", self.clip_skip)
+        # prompt_embeds, negative_prompt_embeds = self.encode_prompt(
+        #     prompt,
+        #     device,
+        #     num_images_per_prompt,
+        #     self.do_classifier_free_guidance,
+        #     negative_prompt,
+        #     prompt_embeds=prompt_embeds,
+        #     negative_prompt_embeds=negative_prompt_embeds,
+        #     lora_scale=lora_scale,
+        #     clip_skip=self.clip_skip,
+        # )
+
+        print("shape of prompt_embeds: " + str(prompt_embeds.shape))
+        print("shape of negative_prompt_embeds: " + str(negative_prompt_embeds.shape))
 
 
         # For classifier free guidance, we need to do two forward passes.
@@ -441,7 +455,7 @@ def process_latents(latents, operation): # apply mean, average, etc
 
 
 test_image = load_image("https://is1-ssl.mzstatic.com/image/thumb/Purple1/v4/a7/75/85/a77585b2-1818-46cc-0e18-2669cb1869a2/source/512x512bb.jpg")
-def generate_image(latents): # takes in latents as input and generates an image with SD
+def generate_image(latents, prompt_embeds, negative_prompt_embeds): # takes in latents as input and generates an image with SD
   # ATTENTION: FOR SOME REASON, SETTING GUIDANCE SCALE TO 1 ABSOLUTELY FUCKS UP THE WHOLE PIPELINE, TREASURE YOUR BRAIN CELLS
 
     # Generate a blank black image of size 512x512
@@ -451,14 +465,15 @@ def generate_image(latents): # takes in latents as input and generates an image 
     
   start = time.time()
   images = pipe(
-        prompt="high quality",
+        # prompt="made out of lego, colorful, rainbow",
         input_image_embeds=latents,
         ip_adapter_image=test_image,
-        num_inference_steps=5,
+        num_inference_steps=4,
         guidance_scale=1.2, #change to 1.9
         generator=generator,
-        do_classifier_free_guidance=True
-
+        do_classifier_free_guidance=True, 
+        prompt_embeds=prompt_embeds,
+        negative_prompt_embeds=negative_prompt_embeds
         # height=512,
         # width=512,
     )
@@ -510,6 +525,11 @@ print("COMPILED!!!!!")
 # The initial calls will trigger compilation and might be very slow.
 # After that, it should be very fast.
 image = load_image("https://is1-ssl.mzstatic.com/image/thumb/Purple1/v4/a7/75/85/a77585b2-1818-46cc-0e18-2669cb1869a2/source/512x512bb.jpg")
+image = load_image("https://pbs.twimg.com/media/F2_uILUXwAA0erl.jpg")
+# image = load_image("https://res.cloudinary.com/dk-find-out/image/upload/q_80,w_1920,f_auto/MA_00162721_yqcuno.jpg")
+# image = load_image("https://images.wsj.net/im-398311?width=1280&size=1")
+# image = load_image("https://www.byronmusic.com.au/cdn/shop/products/martinez-small-body-acoustic-guitar-spruce-top-mf-25-nst-28769932050627_1200x.jpg?v=1651056022")
+
 
 
 
@@ -520,10 +540,30 @@ image_embeds, negative_image_embeds = CustomPipeline.encode_image(
 latent = torch.cat([negative_image_embeds, image_embeds])
 latent = mix_images(latent, latent, 0.5)
 
-        
 
-for _ in range(10):
-    generate_image(latent).images[0]
+for i in range(10):
+    prompt_embeds, negative_prompt_embeds = CustomPipeline.encode_prompt(
+            pipe,
+            "made out of lego, masterful composition",
+            device,
+            1,
+            True,
+    )
+
+    print("prompt embeds shape: ", prompt_embeds.shape)
+    print("negative prompt embeds shape: ", negative_prompt_embeds.shape)
+
+    # # normalise and scale prompt embeds and negative prompt embeds
+    prompt_embeds = prompt_embeds / prompt_embeds.norm(dim=-1, keepdim=True)
+    negative_prompt_embeds = negative_prompt_embeds / negative_prompt_embeds.norm(dim=-1, keepdim=True)
+    prompt_embeds = prompt_embeds * i * 5
+    negative_prompt_embeds = negative_prompt_embeds * i * 5
+
+
+    image = generate_image(latent, prompt_embeds, negative_prompt_embeds).images[0]
+    # save image
+    image.save(f"test_images/{i}.jpg")
+
 
 
 @app.route('/ping', methods=['GET'])

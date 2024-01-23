@@ -266,8 +266,8 @@ class CustomPipeline(StableDiffusionPipeline):
         #     clip_skip=self.clip_skip,
         # )
 
-        print("shape of prompt_embeds: " + str(prompt_embeds.shape))
-        print("shape of negative_prompt_embeds: " + str(negative_prompt_embeds.shape))
+        # print("shape of prompt_embeds: " + str(prompt_embeds.shape))
+        # print("shape of negative_prompt_embeds: " + str(negative_prompt_embeds.shape))
 
 
         # For classifier free guidance, we need to do two forward passes.
@@ -472,15 +472,15 @@ def generate_image(latents, prompt_embeds, negative_prompt_embeds): # takes in l
     
   start = time.time()
   images = pipe(
-        # prompt="made out of lego, colorful, rainbow",
+        prompt="made out of lego, colorful, rainbow",
         input_image_embeds=latents,
         ip_adapter_image=test_image,
         num_inference_steps=5,
         guidance_scale=1.2, #change to 1.9
         generator=generator,
         do_classifier_free_guidance=True, 
-        prompt_embeds=prompt_embeds,
-        negative_prompt_embeds=negative_prompt_embeds
+        # prompt_embeds=prompt_embeds,
+        # negative_prompt_embeds=negative_prompt_embeds
         # height=512,
         # width=512,
     )
@@ -531,11 +531,11 @@ print("COMPILED!!!!!")
 # NOTE: Warm it up.
 # The initial calls will trigger compilation and might be very slow.
 # After that, it should be very fast.
-# image = load_image("https://is1-ssl.mzstatic.com/image/thumb/Purple1/v4/a7/75/85/a77585b2-1818-46cc-0e18-2669cb1869a2/source/512x512bb.jpg")
+image = load_image("https://is1-ssl.mzstatic.com/image/thumb/Purple1/v4/a7/75/85/a77585b2-1818-46cc-0e18-2669cb1869a2/source/512x512bb.jpg")
 # image = load_image("https://pbs.twimg.com/media/F2_uILUXwAA0erl.jpg")
 # image = load_image("https://pbs.twimg.com/media/GCiPBxfWgAAWByB?format=jpg&name=medium")
 # image = load_image("https://pbs.twimg.com/media/GCc-Uw5WYAAvec2?format=jpg&name=large")
-image = load_image("https://upload.wikimedia.org/wikipedia/commons/0/02/Great_Wave_off_Kanagawa_-_reversed.png")
+# image = load_image("https://upload.wikimedia.org/wikipedia/commons/0/02/Great_Wave_off_Kanagawa_-_reversed.png")
 # image = load_image("https://res.cloudinary.com/dk-find-out/image/upload/q_80,w_1920,f_auto/MA_00162721_yqcuno.jpg")
 # image = load_image("https://images.wsj.net/im-398311?width=1280&size=1")
 # image = load_image("https://www.byronmusic.com.au/cdn/shop/products/martinez-small-body-acoustic-guitar-spruce-top-mf-25-nst-28769932050627_1200x.jpg?v=1651056022")
@@ -650,11 +650,22 @@ def slerp_route():
 
     return Response(img_byte_arr, mimetype='image/jpeg')
 
+
+
+prompt_embeds, negative_prompt_embeds = CustomPipeline.encode_prompt(
+pipe,
+    "high quality, unreal engine, masterful composition",
+    device,
+    1,
+    True,
+)
+
 @app.route('/avg', methods=['GET'])
 def generate_avg_time():
     image = load_image("https://is1-ssl.mzstatic.com/image/thumb/Purple1/v4/a7/75/85/a77585b2-1818-46cc-0e18-2669cb1869a2/source/512x512bb.jpg")
     image = image.resize((512, 512))
     
+
     image_embeds, negative_image_embeds = CustomPipeline.encode_image(
                 pipe, image, device, 1, output_hidden_states=False
                 )
@@ -662,7 +673,7 @@ def generate_avg_time():
     latent = torch.cat([negative_image_embeds, image_embeds])
     start_time = time.time()
     for _ in range(5):
-        generate_image(latent).images[0]
+        generate_image(latent, prompt_embeds, negative_prompt_embeds).images[0]
     end_time = time.time()
     avg_time = (end_time - start_time) / 5
     return jsonify({'average_time': avg_time}), 200
@@ -715,7 +726,7 @@ def pregenerate():
         #     interpolated_latent = mix_images(latents_store[id_b], latents_store[id_c], (step - positions[1]) / (positions[2] - positions[1]))
         # else:
         #     interpolated_latent = latents_store[id_c]
-        image = generate_image(interpolated_latent).images[0]
+        image = generate_image(interpolated_latent, prompt_embeds, negative_prompt_embeds).images[0]
 
 
         buffered = BytesIO()

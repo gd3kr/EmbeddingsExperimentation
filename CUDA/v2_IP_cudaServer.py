@@ -654,7 +654,7 @@ def slerp_route():
 
 prompt_embeds, negative_prompt_embeds = CustomPipeline.encode_prompt(
 pipe,
-    "painting in the style of hiroshi nagai, high quality",
+    "screenshot from disney pixar, high quality, masterful composition",
     device,
     1,
     True,

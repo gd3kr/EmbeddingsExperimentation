@@ -4,9 +4,9 @@ import { useState, useRef, useCallback } from "react";
 import axios from "axios";
 
 // import image1 image2 and image3
-import image1 from "./image10.jpeg";
+import image1 from "./image2.jpeg";
 import image2 from "./image11.jpeg";
-import image3 from "./image12.jpeg";
+import image3 from "./image20.jpeg";
 import waves from "./waves.png";
 
 // load images from testImages.json
@@ -225,7 +225,7 @@ function App() {
                       id_a: 1,
                       id_b: 2,
                       id_c: 3,
-                      num_images: 200,
+                      num_images: 300,
                       // positions: [0.1, 0.2, 0.8]
                       positions: gradientPositions.map((pos) =>
                         parseFloat((pos / 100).toFixed(1))

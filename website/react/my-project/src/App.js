@@ -4,9 +4,9 @@ import { useState, useRef, useCallback } from "react";
 import axios from "axios";
 
 // import image1 image2 and image3
-import image1 from "./image6.jpeg";
-import image2 from "./image7.jpeg";
-import image3 from "./image8.jpeg";
+import image1 from "./image10.jpeg";
+import image2 from "./image11.jpeg";
+import image3 from "./image12.jpeg";
 import waves from "./waves.png";
 
 // load images from testImages.json
@@ -128,17 +128,17 @@ function App() {
               <h1 className="subheadline self-start">inputs</h1>
               <img
                 src={image1}
-                className=" rounded-xl shadow-xl"
+                className=" rounded-xl shadow-xl w-full h-full object-cover"
                 alt="image1"
               />
               <img
                 src={image2}
-                className="rounded-xl shadow-xl"
+                className="rounded-xl shadow-xl w-full h-full object-cover"
                 alt="image2"
               />
               <img
                 src={image3}
-                className=" rounded-xl shadow-xl"
+                className="rounded-xl shadow-xl w-full h-full object-cover"
                 alt="image3"
               />
             </div>
@@ -151,20 +151,20 @@ function App() {
               className="absolute"
               style={{
                 borderRadius: '26px',
-                opacity: 0.7,
+                opacity: 0.8,
                 background: displayedImage?.includes("data:image/jpeg;base64,")
                   ? `url(${displayedImage}) lightgray 50% / cover no-repeat`
                   : `url(data:image/jpeg;base64,${displayedImage}) lightgray 50% / cover no-repeat`,
                 mixBlendMode: 'hard-light',
                 filter: 'blur(52.599998474121094px)',
-                width: '270px', // slightly larger than the front image
-                height: '270px',
-                bottom: '45%',
+                width: '400px', // slightly larger than the front image
+                height: '400px',
+                bottom: '35%',
               }}
             />
             <img
               src={displayedImage?.includes("data:image/jpeg;base64,") ? displayedImage : `data:image/jpeg;base64,${displayedImage}`}
-              className="h-[250px] w-[250px] rounded-xl shadow-xl relative"
+              className="h-[400px] w-[400px] rounded-xl shadow-xl relative"
               alt="displayed image"
             />
 
@@ -225,7 +225,7 @@ function App() {
                       id_a: 1,
                       id_b: 2,
                       id_c: 3,
-                      num_images: 100,
+                      num_images: 200,
                       // positions: [0.1, 0.2, 0.8]
                       positions: gradientPositions.map((pos) =>
                         parseFloat((pos / 100).toFixed(1))
@@ -340,9 +340,9 @@ const SliderThumb = ({
       const newPosition = e.clientX - rect.left;
       const endPosition = rect.width;
 
-      if (newPosition >= 1 && newPosition <= endPosition) {
-        const positionPercent = (newPosition / endPosition) * 100;
-        setPosition(positionPercent);
+      if (newPosition >= 5 && newPosition <= endPosition) {
+        const positionPercent = (newPosition / (endPosition)) * 100;
+        setPosition(Math.max(positionPercent-10, 0));
         const imageIndex = Math.round(
           (positionPercent * (images.length - 1)) / 100
         );

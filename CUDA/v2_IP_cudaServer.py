@@ -472,15 +472,15 @@ def generate_image(latents, prompt_embeds, negative_prompt_embeds): # takes in l
     
   start = time.time()
   images = pipe(
-        prompt="made out of lego, colorful, rainbow",
+        # prompt="made out of lego, colorful, rainbow",
         input_image_embeds=latents,
         ip_adapter_image=test_image,
         num_inference_steps=5,
         guidance_scale=1.2, #change to 1.9
         generator=generator,
         do_classifier_free_guidance=True, 
-        # prompt_embeds=prompt_embeds,
-        # negative_prompt_embeds=negative_prompt_embeds
+        prompt_embeds=prompt_embeds,
+        negative_prompt_embeds=negative_prompt_embeds
         # height=512,
         # width=512,
     )
@@ -654,7 +654,7 @@ def slerp_route():
 
 prompt_embeds, negative_prompt_embeds = CustomPipeline.encode_prompt(
 pipe,
-    "high quality, unreal engine, masterful composition",
+    "painting in the style of hiroshi nagai, high quality",
     device,
     1,
     True,
@@ -688,10 +688,19 @@ def pregenerate():
     id_a = data['id_a']
     id_b = data['id_b']
     id_c = data['id_c']
+
     positions = data['positions'] # array of length 3, each element is a number between 0 and 1
     positions[0] = 0
     positions[2] = 1
     images = {}
+
+    # Check if all latents are in the latents_store
+    if id_a in latents_store and id_b in latents_store and id_c in latents_store:
+        # Proceed with generation
+        pass
+    else:
+        # Return an error response if any latent is missing
+        return jsonify({'error': 'Missing latent representations in the store.'}), 400
 
 
     num_images = data['num_images'] # the number of images to generate tweening    

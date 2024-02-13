@@ -95,7 +95,7 @@ def retrieve_timesteps(
     return timesteps, num_inference_steps
 
 
-class CustomPipeline(StableDiffusionPipeline):
+class LatentSurfingPipeline(StableDiffusionPipeline):
     model_cpu_offload_seq = "image_encoder->unet->vae"
 
     def __init__(
@@ -354,7 +354,7 @@ class CustomPipeline(StableDiffusionPipeline):
 
 def load_model():
     model_id =  "stabilityai/sdxl-turbo"
-    pipe = CustomPipeline.from_pretrained(model_id).to("cuda")
+    pipe = LatentSurfingPipeline.from_pretrained(model_id).to("cuda")
 
     pipe.load_ip_adapter("h94/IP-Adapter", subfolder="sdxl_models", weight_name="ip-adapter_sdxl.bin")
     # pipe.unet.set_attn_processor(AttnProcessor2_0())
@@ -424,7 +424,7 @@ def store_latent():
     except requests.RequestException as e:
         return jsonify({'error': str(e)}), 500
     
-    image_embeds, negative_image_embeds = CustomPipeline.encode_image(
+    image_embeds, negative_image_embeds = LatentSurfingPipeline.encode_image(
                 pipe, image, device, 1, output_hidden_states=False
                 )
     # concat
